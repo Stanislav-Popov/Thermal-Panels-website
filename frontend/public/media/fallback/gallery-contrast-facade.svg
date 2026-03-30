@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" fill="none">
+  <rect width="960" height="720" fill="#EEE9E3"/>
+  <circle cx="748" cy="132" r="84" fill="#FFF6EA"/>
+  <rect x="180" y="252" width="600" height="352" rx="34" fill="#2F3438"/>
+  <rect x="232" y="286" width="496" height="268" rx="24" fill="#CFC3B4"/>
+  <rect x="274" y="328" width="180" height="116" rx="18" fill="#6E7277"/>
+  <rect x="506" y="328" width="180" height="116" rx="18" fill="#6E7277"/>
+  <rect x="386" y="454" width="188" height="100" rx="18" fill="#9F795D"/>
+  <text x="122" y="92" fill="#6E3927" font-family="Arial, sans-serif" font-size="28" font-weight="700">Facade fallback</text>
+  <text x="122" y="654" fill="#4B372D" font-family="Arial, sans-serif" font-size="46" font-weight="700">Contrast facade composition</text>
+  <text x="122" y="692" fill="#7A6358" font-family="Arial, sans-serif" font-size="22">Contrast facade concept.</text>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" fill="none">
+  <rect width="960" height="720" fill="#F6EEE6"/>
+  <rect x="118" y="108" width="724" height="504" rx="34" fill="#E6CCB5"/>
+  <g fill="#C7895C">
+    <rect x="170" y="162" width="172" height="92" rx="18"/>
+    <rect x="362" y="162" width="172" height="92" rx="18"/>
+    <rect x="554" y="162" width="172" height="92" rx="18"/>
+    <rect x="266" y="274" width="172" height="92" rx="18"/>
+    <rect x="458" y="274" width="172" height="92" rx="18"/>
+    <rect x="170" y="386" width="172" height="92" rx="18"/>
+    <rect x="362" y="386" width="172" height="92" rx="18"/>
+    <rect x="554" y="386" width="172" height="92" rx="18"/>
+  </g>
+  <text x="136" y="86" fill="#6E3927" font-family="Arial, sans-serif" font-size="28" font-weight="700">Texture fallback</text>
+  <text x="136" y="654" fill="#4B372D" font-family="Arial, sans-serif" font-size="46" font-weight="700">Granular texture</text>
+  <text x="136" y="692" fill="#7A6358" font-family="Arial, sans-serif" font-size="22">Texture study.</text>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" fill="none">
+  <rect width="960" height="720" fill="#F7F0E9"/>
+  <rect x="98" y="92" width="764" height="536" rx="40" fill="#FFF8F0"/>
+  <rect x="150" y="154" width="328" height="412" rx="30" fill="#E1C6AF"/>
+  <rect x="520" y="154" width="250" height="412" rx="30" fill="#EDE1D6"/>
+  <circle cx="645" cy="256" r="62" fill="#D8A47B"/>
+  <rect x="606" y="320" width="78" height="148" rx="24" fill="#C67F53"/>
+  <rect x="214" y="220" width="202" height="280" rx="24" fill="#C58A5C"/>
+  <rect x="242" y="246" width="146" height="36" rx="18" fill="#F5E8DA"/>
+  <rect x="242" y="298" width="146" height="36" rx="18" fill="#F5E8DA"/>
+  <rect x="242" y="350" width="146" height="36" rx="18" fill="#F5E8DA"/>
+  <text x="130" y="80" fill="#6E3927" font-family="Arial, sans-serif" font-size="28" font-weight="700">Install fallback</text>
+  <text x="130" y="658" fill="#4B372D" font-family="Arial, sans-serif" font-size="46" font-weight="700">Self-install service visual</text>
+  <text x="130" y="696" fill="#7A6358" font-family="Arial, sans-serif" font-size="22">Install process concept scene.</text>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" fill="none">
+  <rect width="960" height="720" fill="#F3ECE4"/>
+  <circle cx="760" cy="128" r="86" fill="#FFF6EA"/>
+  <path d="M198 546L484 278L760 546V618H198V546Z" fill="#D2B39A"/>
+  <path d="M256 618V430L484 300L704 430V618H256Z" fill="#EEDFD1"/>
+  <path d="M314 618V462L484 364L646 462V618H314Z" fill="#C67F53"/>
+  <rect x="368" y="480" width="122" height="138" rx="18" fill="#F3E7DA"/>
+  <rect x="524" y="458" width="86" height="78" rx="14" fill="#F6EBDD"/>
+  <text x="120" y="92" fill="#6E3927" font-family="Arial, sans-serif" font-size="28" font-weight="700">Product fallback</text>
+  <text x="120" y="654" fill="#4B372D" font-family="Arial, sans-serif" font-size="46" font-weight="700">House example</text>
+  <text x="120" y="692" fill="#7A6358" font-family="Arial, sans-serif" font-size="22">House application concept.</text>
+</svg>

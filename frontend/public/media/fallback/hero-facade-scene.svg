@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="240" x2="1220" y1="40" y2="860" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8EFE7"/>
+      <stop offset="1" stop-color="#E8D8C7"/>
+    </linearGradient>
+  </defs>
+  <rect width="1440" height="900" fill="url(#bg)"/>
+  <circle cx="1120" cy="168" r="112" fill="#FFF6EA"/>
+  <path d="M180 680L520 420L820 616L1128 356L1260 468V760H180V680Z" fill="#D3B59E"/>
+  <path d="M260 760V528L610 310L980 540V760H260Z" fill="#F7F0E8"/>
+  <path d="M376 760V462L616 316L856 462V760H376Z" fill="#C67F53"/>
+  <path d="M420 760V500L616 382L812 500V760H420Z" fill="#F2E5D7"/>
+  <path d="M486 760V544H742V760H486Z" fill="#E8D4C0"/>
+  <rect x="534" y="410" width="154" height="98" rx="14" fill="#FAF4EC"/>
+  <rect x="938" y="566" width="168" height="146" rx="18" fill="#EFE0D0"/>
+  <text x="120" y="118" fill="#6E3927" font-family="Arial, sans-serif" font-size="34" font-weight="700">THERMAL PANELS</text>
+  <text x="120" y="170" fill="#4B372D" font-family="Arial, sans-serif" font-size="62" font-weight="700">Facade render fallback</text>
+  <text x="120" y="226" fill="#7A6358" font-family="Arial, sans-serif" font-size="28">Facade concept scene.</text>
+</svg>
