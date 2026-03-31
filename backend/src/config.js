@@ -31,12 +31,28 @@ function parseBoolean(value, fallback = false) {
   return fallback
 }
 
+function parseList(value, fallback = []) {
+  if (typeof value !== 'string') {
+    return fallback
+  }
+
+  const items = value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  return items.length > 0 ? items : fallback
+}
+
 export const config = {
   port: parseNumber(process.env.PORT, 5000),
   reserveRate: parseNumber(process.env.CALCULATOR_RESERVE_RATE, 0.07),
   uploads: {
     directory: parseString(process.env.UPLOADS_DIR, 'uploads'),
     maxFileSizeMb: parseNumber(process.env.UPLOAD_MAX_FILE_SIZE_MB, 8),
+  },
+  cors: {
+    allowedOrigins: parseList(process.env.FRONTEND_ORIGIN),
   },
   db: {
     host: parseString(process.env.DB_HOST, '127.0.0.1'),
