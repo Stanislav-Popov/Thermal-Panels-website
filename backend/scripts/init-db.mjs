@@ -28,6 +28,9 @@ async function ensureDatabaseExists() {
     database: config.db.adminDatabase,
     user: config.db.user,
     password: config.db.password,
+    ssl: config.db.ssl
+      ? { rejectUnauthorized: config.db.sslRejectUnauthorized }
+      : undefined,
   })
 
   await adminClient.connect()
@@ -56,6 +59,9 @@ async function runSqlFile(filePath) {
     database: config.db.database,
     user: config.db.user,
     password: config.db.password,
+    ssl: config.db.ssl
+      ? { rejectUnauthorized: config.db.sslRejectUnauthorized }
+      : undefined,
   })
 
   await client.connect()

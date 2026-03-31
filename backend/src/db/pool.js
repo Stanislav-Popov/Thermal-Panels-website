@@ -9,6 +9,9 @@ export const pool = new Pool({
   database: config.db.database,
   user: config.db.user,
   password: config.db.password,
+  ssl: config.db.ssl
+    ? { rejectUnauthorized: config.db.sslRejectUnauthorized }
+    : undefined,
 })
 
 export async function query(text, params = []) {

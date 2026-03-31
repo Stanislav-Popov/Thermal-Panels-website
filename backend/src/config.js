@@ -13,6 +13,24 @@ function parseOptionalString(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function parseBoolean(value, fallback = false) {
+  if (typeof value !== 'string') {
+    return fallback
+  }
+
+  const normalizedValue = value.trim().toLowerCase()
+
+  if (['1', 'true', 'yes', 'on'].includes(normalizedValue)) {
+    return true
+  }
+
+  if (['0', 'false', 'no', 'off'].includes(normalizedValue)) {
+    return false
+  }
+
+  return fallback
+}
+
 export const config = {
   port: parseNumber(process.env.PORT, 5000),
   reserveRate: parseNumber(process.env.CALCULATOR_RESERVE_RATE, 0.07),
@@ -27,6 +45,11 @@ export const config = {
     user: parseString(process.env.DB_USER, 'postgres'),
     password: parseOptionalString(process.env.DB_PASSWORD),
     adminDatabase: parseString(process.env.DB_ADMIN_DATABASE, 'postgres'),
+    ssl: parseBoolean(process.env.DB_SSL, false),
+    sslRejectUnauthorized: parseBoolean(
+      process.env.DB_SSL_REJECT_UNAUTHORIZED,
+      false
+    ),
   },
   admin: {
     tokenSecret: parseString(
