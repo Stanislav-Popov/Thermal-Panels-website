@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { sectionTextDefaults } from '../content/siteTextDefaults.js'
 
 export function Header({
   brand = {},
@@ -7,42 +8,44 @@ export function Header({
   menuActions,
   menuItems,
   messengerLabels = {},
-  phoneShortLabel = 'Позвонить',
+  phoneShortLabel = sectionTextDefaults.header.phoneShortLabel,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const menuClassName = isOpen ? 'site-menu site-menu--open' : 'site-menu'
   const messengerItems = [
     {
-      ariaLabel: 'Написать в WhatsApp',
-      href: contacts.whatsappHref,
-      key: 'whatsapp',
-      label: messengerLabels.whatsapp ?? 'WA',
+      ariaLabel: 'Перейти к контактам',
+      href: '#contacts',
+      key: 'contacts',
+      label: 'Контакты',
     },
     {
       ariaLabel: 'Написать в Telegram',
       href: contacts.telegramHref,
       key: 'telegram',
-      label: messengerLabels.telegram ?? 'TG',
+      label: messengerLabels.telegram ?? sectionTextDefaults.header.messengerLabels.telegram,
     },
     {
       ariaLabel: 'Перейти во VK',
       href: contacts.vkHref,
       key: 'vk',
-      label: messengerLabels.vk ?? 'VK',
+      label: messengerLabels.vk ?? sectionTextDefaults.header.messengerLabels.vk,
     },
-  ].filter((item) => item.href)
+  ].filter((item) => item.key === 'contacts' || item.href)
 
   return (
     <header className="site-header">
       <div className="layout-container site-header__bar">
         <a className="brand-mark" href="#top" onClick={() => setIsOpen(false)}>
-          <span className="brand-mark__badge">{brand.badge ?? 'TP'}</span>
+          <span className="brand-mark__badge">
+            {brand.badge ?? sectionTextDefaults.header.brandBadge}
+          </span>
           <span className="brand-mark__text">
             <span className="brand-mark__title">
-              {brand.title ?? 'Thermal Panels'}
+              {brand.title ?? sectionTextDefaults.header.brandTitle}
             </span>
             <span className="brand-mark__subtitle">
-              {brand.subtitle ?? 'Утепление и облицовка фасада'}
+              {brand.subtitle ?? sectionTextDefaults.header.brandSubtitle}
             </span>
           </span>
         </a>
@@ -64,8 +67,9 @@ export function Header({
                     className="site-header__messenger"
                     href={item.href}
                     key={item.key}
-                    rel="noreferrer"
-                    target="_blank"
+                    onClick={() => setIsOpen(false)}
+                    rel={item.key === 'contacts' ? undefined : 'noreferrer'}
+                    target={item.key === 'contacts' ? undefined : '_blank'}
                   >
                     {item.label}
                   </a>
@@ -74,9 +78,12 @@ export function Header({
             ) : null}
           </div>
 
-          <a className="site-header__cta" href={headerCta.href ?? '#calculator'}>
+          <a
+            className="site-header__cta"
+            href={headerCta.href ?? sectionTextDefaults.header.ctaHref}
+          >
             <span className="site-header__cta-label">
-              {headerCta.label ?? 'Рассчитать стоимость'}
+              {headerCta.label ?? sectionTextDefaults.header.ctaLabel}
             </span>
             <span className="site-header__cta-short">
               {headerCta.shortLabel ?? 'Расчёт'}

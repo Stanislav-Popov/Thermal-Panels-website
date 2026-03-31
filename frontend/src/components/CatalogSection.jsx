@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { sectionTextDefaults } from '../content/siteTextDefaults.js'
 import { Section } from './Section.jsx'
 
 const priceFormatter = new Intl.NumberFormat('ru-RU', {
@@ -6,6 +7,12 @@ const priceFormatter = new Intl.NumberFormat('ru-RU', {
   currency: 'RUB',
   maximumFractionDigits: 0,
 })
+const fallbackGalleryItem = {
+  alt: 'Изображение товара временно недоступно',
+  image: '/media/fallback/product-panel-far.svg',
+  kind: 'Фото товара',
+  note: 'Фотографии товара появятся после публикации карточки в админ-панели.',
+}
 
 function getProductDiscount(product) {
   if (!product.priceOld || product.priceOld <= product.priceCurrent) {
@@ -25,16 +32,28 @@ function formatPrice(value) {
   return priceFormatter.format(value)
 }
 
+function getProductGallery(product) {
+  return Array.isArray(product?.gallery) && product.gallery.length > 0
+    ? product.gallery
+    : [fallbackGalleryItem]
+}
+
 export function CatalogSection({
+  contacts = null,
+  ctaHref = sectionTextDefaults.catalog.ctaHref,
+  ctaLabel = sectionTextDefaults.catalog.ctaLabel,
   description = '',
   error = '',
   eyebrow = '',
   isLoading = false,
   products,
-  title = 'Подберите панель под фасад своего дома',
+  title = sectionTextDefaults.catalog.title,
 }) {
   const [activeProduct, setActiveProduct] = useState(null)
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
+  const activeGallery = getProductGallery(activeProduct)
+  const activeImage = activeGallery[activePhotoIndex] ?? activeGallery[0]
+  const phoneHref = contacts?.phoneHref ?? '#contacts'
 
   useEffect(() => {
     if (!activeProduct) {
@@ -76,6 +95,10 @@ export function CatalogSection({
   const activeDiscount = activeProduct ? getProductDiscount(activeProduct) : null
 
   const handleCardKeyDown = (event, product) => {
+    if (event.currentTarget !== event.target) {
+      return
+    }
+
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
       openProduct(product)
@@ -127,12 +150,9 @@ export function CatalogSection({
       title={title}
     >
       <div className="catalog-shell">
-        <div className="catalog-summary">
-          <p className="catalog-summary__text">
-            Показано позиций: <strong>{products.length}</strong>
-          </p>
-          <a className="catalog-summary__link" href="#contacts">
-            Запросить подбор и расчёт
+        <div className="catalog-summary catalog-summary--actions">
+          <a className="catalog-summary__link" href={ctaHref}>
+            {ctaLabel}
           </a>
         </div>
 
@@ -140,6 +160,7 @@ export function CatalogSection({
           <div className="catalog-grid">
             {products.map((product) => {
               const discount = getProductDiscount(product)
+              const primaryImage = getProductGallery(product)[0]
 
               return (
                 <article
@@ -153,9 +174,9 @@ export function CatalogSection({
                 >
                   <div className="catalog-card__media">
                     <img
-                      alt={product.gallery[0].alt}
+                      alt={primaryImage.alt}
                       className="catalog-card__image"
-                      src={product.gallery[0].image}
+                      src={primaryImage.image}
                     />
                   </div>
 
@@ -212,39 +233,32 @@ export function CatalogSection({
               <div className="catalog-modal__gallery">
                 <div className="catalog-modal__main-image-wrap">
                   <img
-                    alt={activeProduct.gallery[activePhotoIndex].alt}
+                    alt={activeImage.alt}
                     className="catalog-modal__main-image"
-                    src={activeProduct.gallery[activePhotoIndex].image}
+                    src={activeImage.image}
                   />
-                  <div className="catalog-modal__main-caption">
-                    <span className="catalog-modal__main-kind">
-                      {activeProduct.gallery[activePhotoIndex].kind}
-                    </span>
-                    <p className="catalog-modal__main-note">
-                      {activeProduct.gallery[activePhotoIndex].note}
-                    </p>
-                  </div>
                 </div>
 
-                <div className="catalog-modal__thumbs" aria-label="Галерея товара">
-                  {activeProduct.gallery.map((image, index) => (
-                    <button
-                      aria-label={`Показать фото: ${image.kind}`}
-                      aria-pressed={activePhotoIndex === index}
-                      className={`catalog-modal__thumb${activePhotoIndex === index ? ' catalog-modal__thumb--active' : ''}`}
-                      key={`${activeProduct.slug}-${image.kind}`}
-                      onClick={() => setActivePhotoIndex(index)}
-                      type="button"
-                    >
-                      <img
-                        alt={image.alt}
-                        className="catalog-modal__thumb-image"
-                        src={image.image}
-                      />
-                      <span className="catalog-modal__thumb-label">{image.kind}</span>
-                    </button>
-                  ))}
-                </div>
+                {activeGallery.length > 1 ? (
+                  <div className="catalog-modal__thumbs" aria-label="Галерея товара">
+                    {activeGallery.map((image, index) => (
+                      <button
+                        aria-label={`Показать фото: ${image.kind}`}
+                        aria-pressed={activePhotoIndex === index}
+                        className={`catalog-modal__thumb${activePhotoIndex === index ? ' catalog-modal__thumb--active' : ''}`}
+                        key={`${activeProduct.slug}-${image.kind}-${index}`}
+                        onClick={() => setActivePhotoIndex(index)}
+                        type="button"
+                      >
+                        <img
+                          alt={image.alt}
+                          className="catalog-modal__thumb-image"
+                          src={image.image}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
               <div className="catalog-modal__content">
@@ -304,7 +318,7 @@ export function CatalogSection({
                   </a>
                   <a
                     className="catalog-card__button catalog-card__button--ghost"
-                    href="tel:+79097555095"
+                    href={phoneHref}
                   >
                     Позвонить
                   </a>

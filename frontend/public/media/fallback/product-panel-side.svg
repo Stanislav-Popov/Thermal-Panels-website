@@ -4,8 +4,4 @@
   <path d="M374 286L744 216V544L374 614V286Z" fill="#C57F57"/>
   <path d="M268 182V510L374 614V286L268 182Z" fill="#E5CBB5"/>
   <path d="M268 332L374 436" stroke="#F6E7DB" stroke-width="14"/>
-  <path d="M268 410L374 514" stroke="#F6E7DB" stroke-width="14"/>
-  <text x="126" y="96" fill="#6E3927" font-family="Arial, sans-serif" font-size="28" font-weight="700">Product fallback</text>
-  <text x="126" y="654" fill="#4B372D" font-family="Arial, sans-serif" font-size="46" font-weight="700">Panel side view</text>
-  <text x="126" y="692" fill="#7A6358" font-family="Arial, sans-serif" font-size="22">Side profile preview.</text>
-</svg>
+  <path d="M268 410L374 514" stroke="#F6E7DB" stroke-width="14"/></svg>

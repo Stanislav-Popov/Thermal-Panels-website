@@ -1,28 +1,63 @@
+import {
+  defaultContactChannelConfigs,
+  legacyHeroText,
+  sectionTextDefaults,
+} from '../../../shared/siteTextDefaults.js'
+
 export const publicFallbackAssets = {
-  galleryClinker: '/media/fallback/gallery-clinker-texture.svg',
-  galleryContrastFacade: '/media/fallback/gallery-contrast-facade.svg',
-  galleryGranular: '/media/fallback/gallery-granular-texture.svg',
-  galleryLightFacade: '/media/fallback/gallery-light-facade.svg',
-  galleryPalette: '/media/fallback/gallery-color-palette.svg',
-  gallerySmooth: '/media/fallback/gallery-smooth-texture.svg',
-  hero: '/media/fallback/hero-facade-scene.svg',
-  productFeature: '/media/fallback/product-feature-board.svg',
+  galleryClinker: '/media/products/product-3/product-3-2.webp',
+  galleryContrastFacade: '/media/gallery/Panel-and-facade-options-5.webp',
+  galleryGranular: '/media/products/product-1/product-1-2.webp',
+  galleryLightFacade: '/media/gallery/Panel-and-facade-options-4.webp',
+  galleryPalette: '/media/gallery/Panel-and-facade-options-3.webp',
+  gallerySmooth: '/media/products/product-2/product-2-2.webp',
+  hero: '/media/content/hero-block.webp',
+  productFeature:
+    '/media/content/What-is-important-to-know-about-thermalpanels-block.webp',
   productHouseExample: '/media/fallback/product-house-example.svg',
   productPanelCloseup: '/media/fallback/product-panel-closeup.svg',
   productPanelFar: '/media/fallback/product-panel-far.svg',
   productPanelSide: '/media/fallback/product-panel-side.svg',
   selfInstall: '/media/fallback/self-install-scene.svg',
-  showcaseContrast: '/media/fallback/gallery-contrast-facade.svg',
-  showcaseLight: '/media/fallback/gallery-light-facade.svg',
+  showcaseContrast: '/media/gallery/Panel-and-facade-options-2.webp',
+  showcaseLight: '/media/gallery/Panel-and-facade-options-1.webp',
 }
 
 const legacyPlaceholderImagePaths = new Set(['/placeholder.jpg'])
+const legacyFallbackAssetPrefixes = ['/media/fallback/']
 const placeholderExternalUrls = new Set([
   'https://telegram.org',
   'https://telegram.org/',
   'https://vk.com',
   'https://vk.com/',
 ])
+
+const productGalleryFallbackAssetsBySlug = {
+  'clinker-graphite-ice': {
+    closeup: '/media/products/product-3/product-3-2.webp',
+    facade: '/media/products/product-3/product-3-4.webp',
+    far: '/media/products/product-3/product-3-1.webp',
+    side: '/media/products/product-3/product-3-3.webp',
+  },
+  'granit-light-sand': {
+    closeup: '/media/products/product-1/product-1-2.webp',
+    facade: '/media/products/product-1/product-1-4.webp',
+    far: '/media/products/product-1/product-1-1.webp',
+    side: '/media/products/product-1/product-1-3.webp',
+  },
+  'smooth-milk-graphite': {
+    closeup: '/media/products/product-2/product-2-2.webp',
+    facade: '/media/products/product-2/product-2-4.webp',
+    far: '/media/products/product-2/product-2-1.webp',
+    side: '/media/products/product-2/product-2-3.webp',
+  },
+  'smooth-warm-stone': {
+    closeup: '/media/products/product-4/product-4-2.webp',
+    facade: '/media/products/product-4/product-4-4.webp',
+    far: '/media/products/product-4/product-4-1.webp',
+    side: '/media/products/product-4/product-4-3.webp',
+  },
+}
 
 const legacyProductOverviewBadges = new Set([
   'Утепление',
@@ -48,8 +83,29 @@ function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function normalizeComparableText(value) {
+  return normalizeText(value)
+    .toLowerCase()
+    .replace(/[–—-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/[.!?]+$/g, '')
+    .trim()
+}
+
 function isExactLegacyText(value, expected) {
   return normalizeText(value) === expected
+}
+
+function matchesLegacyVariant(value, variants) {
+  const normalizedValue = normalizeComparableText(value)
+
+  if (!normalizedValue || !Array.isArray(variants)) {
+    return false
+  }
+
+  return variants.some(
+    (variant) => normalizeComparableText(variant) === normalizedValue
+  )
 }
 
 function startsWithLegacyText(value, expectedPrefix) {
@@ -64,9 +120,30 @@ function filterLegacyItems(items, legacyItems) {
   return items.filter((item) => !legacyItems.has(normalizeText(item)))
 }
 
+function mergeDefaultContactChannels(channels) {
+  const normalizedChannels = Array.isArray(channels) ? channels : []
+  const existingKeys = new Set(
+    normalizedChannels.map((item) => normalizeText(item?.key)).filter(Boolean)
+  )
+
+  return [
+    ...normalizedChannels,
+    ...defaultContactChannelConfigs
+      .filter((item) => !existingKeys.has(item.key))
+      .map((item) => ({ ...item })),
+  ]
+}
+
+function isLegacyFallbackAssetPath(value) {
+  return legacyFallbackAssetPrefixes.some((prefix) => value.startsWith(prefix))
+}
+
 export function isLegacyPlaceholderImagePath(value) {
   const normalizedValue = normalizeText(value)
-  return legacyPlaceholderImagePaths.has(normalizedValue)
+  return (
+    legacyPlaceholderImagePaths.has(normalizedValue) ||
+    isLegacyFallbackAssetPath(normalizedValue)
+  )
 }
 
 export function isPlaceholderExternalUrl(value) {
@@ -91,34 +168,50 @@ function resolveImagePath(pathname, fallbackAssetPath) {
   return normalizedPathname
 }
 
-function inferGalleryFallbackAsset(card = {}) {
-  const subject = `${normalizeText(card.title)} ${normalizeText(card.meta)}`.toLowerCase()
+function inferProductGalleryFallbackAsset(productSlug, imageKind, sortOrder) {
+  const galleryAssets =
+    productGalleryFallbackAssetsBySlug[normalizeText(productSlug).toLowerCase()] ??
+    null
+  const normalizedKind = normalizeText(imageKind).toLowerCase()
 
-  if (subject.includes('зернист')) {
-    return publicFallbackAssets.galleryGranular
+  if (!galleryAssets) {
+    if (normalizedKind.includes('круп')) {
+      return publicFallbackAssets.productPanelCloseup
+    }
+
+    if (normalizedKind.includes('сбок')) {
+      return publicFallbackAssets.productPanelSide
+    }
+
+    if (normalizedKind.includes('фасад') || normalizedKind.includes('дом')) {
+      return publicFallbackAssets.productHouseExample
+    }
+
+    return publicFallbackAssets.productPanelFar
   }
 
-  if (subject.includes('гладк')) {
-    return publicFallbackAssets.gallerySmooth
+  if (normalizedKind.includes('круп')) {
+    return galleryAssets.closeup
   }
 
-  if (subject.includes('клинкер')) {
-    return publicFallbackAssets.galleryClinker
+  if (normalizedKind.includes('сбок')) {
+    return galleryAssets.side
   }
 
-  if (subject.includes('контраст')) {
-    return publicFallbackAssets.galleryContrastFacade
+  if (normalizedKind.includes('фасад') || normalizedKind.includes('дом')) {
+    return galleryAssets.facade
   }
 
-  if (subject.includes('светл')) {
-    return publicFallbackAssets.galleryLightFacade
+  switch (Number(sortOrder)) {
+    case 2:
+      return galleryAssets.closeup
+    case 3:
+      return galleryAssets.side
+    case 4:
+      return galleryAssets.facade
+    default:
+      return galleryAssets.far
   }
-
-  return publicFallbackAssets.galleryPalette
-}
-
-export function resolveGalleryCardImagePath(pathname, card) {
-  return resolveImagePath(pathname, inferGalleryFallbackAsset(card))
 }
 
 export function resolveShowcaseImagePath(pathname, showcaseObject = {}) {
@@ -134,30 +227,50 @@ export function resolveShowcaseImagePath(pathname, showcaseObject = {}) {
   return resolveImagePath(pathname, fallbackAssetPath)
 }
 
-export function resolveProductImagePath(pathname, imageKind) {
-  const normalizedKind = normalizeText(imageKind).toLowerCase()
-
-  if (normalizedKind.includes('круп')) {
-    return resolveImagePath(pathname, publicFallbackAssets.productPanelCloseup)
-  }
-
-  if (normalizedKind.includes('сбок')) {
-    return resolveImagePath(pathname, publicFallbackAssets.productPanelSide)
-  }
-
-  if (normalizedKind.includes('фасад') || normalizedKind.includes('дом')) {
-    return resolveImagePath(pathname, publicFallbackAssets.productHouseExample)
-  }
-
-  return resolveImagePath(pathname, publicFallbackAssets.productPanelFar)
+export function resolveProductImagePath(pathname, imageKind, options = {}) {
+  return resolveImagePath(
+    pathname,
+    inferProductGalleryFallbackAsset(
+      options.productSlug,
+      imageKind,
+      options.sortOrder
+    )
+  )
 }
 
 export function stripLegacySiteContentBlockCopy(block) {
   const extraData = { ...(block.extraData ?? {}) }
+  let title = block.title
   let subtitle = block.subtitle
   let body = block.body
 
   switch (block.blockKey) {
+    case 'hero':
+      if (
+        matchesLegacyVariant(title, legacyHeroText.titleVariants) ||
+        matchesLegacyVariant(title, legacyHeroText.bodyVariants)
+      ) {
+        title = sectionTextDefaults.hero.title
+      }
+
+      if (
+        matchesLegacyVariant(subtitle, legacyHeroText.subtitleVariants) ||
+        matchesLegacyVariant(subtitle, legacyHeroText.titleVariants) ||
+        matchesLegacyVariant(subtitle, legacyHeroText.bodyVariants)
+      ) {
+        subtitle = sectionTextDefaults.hero.subtitle
+      }
+
+      if (
+        matchesLegacyVariant(body, legacyHeroText.bodyVariants) ||
+        matchesLegacyVariant(body, legacyHeroText.titleVariants)
+      ) {
+        body = sectionTextDefaults.hero.body
+      }
+      delete extraData.actions
+      delete extraData.facts
+      delete extraData.highlights
+      break
     case 'product-overview':
       if (isExactLegacyText(subtitle, 'Преимущества и описание')) {
         subtitle = ''
@@ -196,6 +309,10 @@ export function stripLegacySiteContentBlockCopy(block) {
       }
       break
     case 'gallery':
+      if (isExactLegacyText(title, 'Варианты панелей и фасадов')) {
+        title = sectionTextDefaults.gallery.title
+      }
+
       if (isExactLegacyText(subtitle, 'Фактуры и объекты')) {
         subtitle = ''
       }
@@ -212,6 +329,8 @@ export function stripLegacySiteContentBlockCopy(block) {
       ) {
         extraData.hint = ''
       }
+
+      delete extraData.cards
       break
     case 'catalog':
       if (isExactLegacyText(subtitle, 'Каталог')) {
@@ -232,6 +351,8 @@ export function stripLegacySiteContentBlockCopy(block) {
       ) {
         body = ''
       }
+
+      delete extraData.installationOptions
       break
     case 'self-install':
       if (isExactLegacyText(subtitle, 'Самостоятельный монтаж')) {
@@ -281,6 +402,7 @@ export function stripLegacySiteContentBlockCopy(block) {
 
   return {
     ...block,
+    title,
     subtitle,
     body,
     extraData,
@@ -302,18 +424,16 @@ export function normalizeSiteContentBlockForPresentation(block) {
       )
       break
     case 'gallery':
-      extraData.cards = Array.isArray(extraData.cards)
-        ? extraData.cards.map((card) => ({
-            ...card,
-            image: resolveGalleryCardImagePath(card?.image, card),
-          }))
-        : []
+      delete extraData.cards
       break
     case 'self-install':
       extraData.image = resolveImagePath(
         extraData.image,
         publicFallbackAssets.selfInstall
       )
+      break
+    case 'contacts':
+      extraData.channels = mergeDefaultContactChannels(extraData.channels)
       break
     default:
       break

@@ -5,8 +5,4 @@
   <rect x="232" y="286" width="496" height="268" rx="24" fill="#F8F4EF"/>
   <rect x="274" y="328" width="180" height="116" rx="18" fill="#F2E7D8"/>
   <rect x="506" y="328" width="180" height="116" rx="18" fill="#F2E7D8"/>
-  <rect x="386" y="454" width="188" height="100" rx="18" fill="#D4B8A0"/>
-  <text x="122" y="92" fill="#6E3927" font-family="Arial, sans-serif" font-size="28" font-weight="700">Facade fallback</text>
-  <text x="122" y="654" fill="#4B372D" font-family="Arial, sans-serif" font-size="46" font-weight="700">Light facade composition</text>
-  <text x="122" y="692" fill="#7A6358" font-family="Arial, sans-serif" font-size="22">Light facade concept.</text>
-</svg>
+  <rect x="386" y="454" width="188" height="100" rx="18" fill="#D4B8A0"/></svg>

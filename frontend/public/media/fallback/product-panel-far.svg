@@ -10,8 +10,4 @@
     <rect x="222" y="414" width="166" height="96" rx="16"/>
     <rect x="408" y="414" width="166" height="96" rx="16"/>
     <rect x="594" y="414" width="166" height="96" rx="16"/>
-  </g>
-  <text x="134" y="84" fill="#6E3927" font-family="Arial, sans-serif" font-size="28" font-weight="700">Product fallback</text>
-  <text x="134" y="654" fill="#4B372D" font-family="Arial, sans-serif" font-size="46" font-weight="700">Panel from distance</text>
-  <text x="134" y="692" fill="#7A6358" font-family="Arial, sans-serif" font-size="22">Product composition preview.</text>
-</svg>
+  </g></svg>

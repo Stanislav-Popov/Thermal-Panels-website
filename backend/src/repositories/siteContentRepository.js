@@ -1,5 +1,65 @@
 import { query } from '../db/pool.js'
 import { resolveShowcaseImagePath } from '../data/runtimeContentLayer.js'
+import { defaultShowcaseObjects } from '../../../shared/defaultShowcaseObjects.js'
+
+let ensureContactsSchemaPromise = null
+let ensureShowcaseObjectsPromise = null
+
+async function ensureContactsSchemaCompatibility() {
+  if (!ensureContactsSchemaPromise) {
+    ensureContactsSchemaPromise = query(
+      `
+        ALTER TABLE contacts
+        ADD COLUMN IF NOT EXISTS max_url TEXT NOT NULL DEFAULT ''
+      `
+    ).catch((error) => {
+      ensureContactsSchemaPromise = null
+      throw error
+    })
+  }
+
+  await ensureContactsSchemaPromise
+}
+
+async function ensureShowcaseObjectsCompatibility() {
+  if (!ensureShowcaseObjectsPromise) {
+    ensureShowcaseObjectsPromise = (async () => {
+      for (const item of defaultShowcaseObjects) {
+        await query(
+          `
+            INSERT INTO showcase_objects (
+              title,
+              texture,
+              color,
+              description,
+              cover_image_path,
+              is_published
+            )
+            SELECT $1, $2, $3, $4, $5, $6
+            WHERE NOT EXISTS (
+              SELECT 1
+              FROM showcase_objects
+              WHERE cover_image_path = $5
+            )
+          `,
+          [
+            item.title,
+            item.texture,
+            item.color,
+            item.description,
+            item.coverImagePath,
+            item.isPublished,
+          ]
+        )
+      }
+    })().catch((error) => {
+      ensureShowcaseObjectsPromise = null
+      throw error
+    })
+  }
+
+  await ensureShowcaseObjectsPromise
+}
 
 function mapBlockRow(row) {
   return {
@@ -34,6 +94,7 @@ function mapContactsRow(row) {
     phone: row.phone,
     whatsappUrl: row.whatsapp_url,
     telegramUrl: row.telegram_url,
+    maxUrl: row.max_url ?? '',
     vkUrl: row.vk_url,
     address: row.address,
     workingHours: row.working_hours,
@@ -41,6 +102,9 @@ function mapContactsRow(row) {
 }
 
 export async function getSiteContentBundle() {
+  await ensureContactsSchemaCompatibility()
+  await ensureShowcaseObjectsCompatibility()
+
   const [contactsResult, blocksResult, showcaseResult] = await Promise.all([
     query(
       `
@@ -48,6 +112,7 @@ export async function getSiteContentBundle() {
           phone,
           whatsapp_url,
           telegram_url,
+          max_url,
           vk_url,
           address,
           working_hours
@@ -181,6 +246,8 @@ export async function upsertSiteContentBlock(block) {
 }
 
 export async function listShowcaseObjects({ includeUnpublished = true } = {}) {
+  await ensureShowcaseObjectsCompatibility()
+
   const result = await query(
     `
       SELECT
@@ -283,12 +350,15 @@ export async function deleteShowcaseObject(id) {
 }
 
 export async function getContacts() {
+  await ensureContactsSchemaCompatibility()
+
   const result = await query(
     `
       SELECT
         phone,
         whatsapp_url,
         telegram_url,
+        max_url,
         vk_url,
         address,
         working_hours
@@ -301,6 +371,8 @@ export async function getContacts() {
 }
 
 export async function upsertContacts(contacts) {
+  await ensureContactsSchemaCompatibility()
+
   const result = await query(
     `
       INSERT INTO contacts (
@@ -308,16 +380,18 @@ export async function upsertContacts(contacts) {
         phone,
         whatsapp_url,
         telegram_url,
+        max_url,
         vk_url,
         address,
         working_hours
       )
-      VALUES (1, $1, $2, $3, $4, $5, $6)
+      VALUES (1, $1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT (id)
       DO UPDATE SET
         phone = EXCLUDED.phone,
         whatsapp_url = EXCLUDED.whatsapp_url,
         telegram_url = EXCLUDED.telegram_url,
+        max_url = EXCLUDED.max_url,
         vk_url = EXCLUDED.vk_url,
         address = EXCLUDED.address,
         working_hours = EXCLUDED.working_hours
@@ -325,6 +399,7 @@ export async function upsertContacts(contacts) {
         phone,
         whatsapp_url,
         telegram_url,
+        max_url,
         vk_url,
         address,
         working_hours
@@ -333,6 +408,7 @@ export async function upsertContacts(contacts) {
       contacts.phone,
       contacts.whatsappUrl,
       contacts.telegramUrl,
+      contacts.maxUrl,
       contacts.vkUrl,
       contacts.address,
       contacts.workingHours,

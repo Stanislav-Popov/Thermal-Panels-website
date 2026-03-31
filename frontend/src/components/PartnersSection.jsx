@@ -1,12 +1,15 @@
 import { Section } from './Section.jsx'
+import { sectionTextDefaults } from '../content/siteTextDefaults.js'
 
 export function PartnersSection({
   description = '',
   eyebrow = '',
-  ctaHref = '#contacts',
-  ctaLabel = 'Обсудить условия',
+  ctaHref = sectionTextDefaults.partners.ctaHref,
+  ctaLabel = sectionTextDefaults.partners.ctaLabel,
+  leadBadge = sectionTextDefaults.partners.leadBadge,
+  leadTitle = sectionTextDefaults.partners.leadTitle,
   options,
-  title = 'Сотрудничество и условия для партнёров',
+  title = sectionTextDefaults.partners.title,
 }) {
   const normalizedOptions = Array.isArray(options) ? options : []
 
@@ -19,10 +22,8 @@ export function PartnersSection({
     >
       <div className="partners-layout">
         <article className="partners-lead">
-          <span className="partners-lead__badge">B2B и объектные поставки</span>
-          <h3 className="partners-lead__title">
-            Подберём формат сотрудничества под ваш канал продаж, бригаду или объект
-          </h3>
+          <span className="partners-lead__badge">{leadBadge}</span>
+          <h3 className="partners-lead__title">{leadTitle}</h3>
           {description ? (
             <p className="partners-lead__text">{description}</p>
           ) : null}

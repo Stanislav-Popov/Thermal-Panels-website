@@ -1,4 +1,8 @@
 import { publicFallbackAssets } from './runtimeContentLayer.js'
+import {
+  defaultContactChannelConfigs,
+  sectionTextDefaults,
+} from '../../../shared/siteTextDefaults.js'
 
 const headerMenuItems = [
   { label: 'Преимущества', href: '#benefits' },
@@ -13,62 +17,44 @@ const headerMenuItems = [
 const headerMenuActions = [
   { label: 'Рассчитать стоимость', href: '#calculator', variant: 'primary' },
   { label: 'Получить каталог', href: '#catalog', variant: 'secondary' },
-  {
-    label: 'Написать в WhatsApp',
-    href: 'https://wa.me/79097555095',
-    variant: 'secondary',
-    external: true,
-  },
   { label: 'Получить консультацию', href: '#contacts', variant: 'secondary' },
 ]
 
 export const defaultSiteContentBlocks = [
   {
     blockKey: 'header',
-    title: 'Thermal Panels',
-    subtitle: 'Утепление и облицовка фасада',
+    title: sectionTextDefaults.header.brandTitle,
+    subtitle: sectionTextDefaults.header.brandSubtitle,
     body: '',
-    ctaLabel: 'Рассчитать стоимость',
-    ctaLink: '#calculator',
+    ctaLabel: sectionTextDefaults.header.ctaLabel,
+    ctaLink: sectionTextDefaults.header.ctaHref,
     extraData: {
-      brandBadge: 'TP',
-      ctaShortLabel: 'Расчёт',
+      brandBadge: sectionTextDefaults.header.brandBadge,
+      ctaShortLabel: sectionTextDefaults.header.ctaShortLabel,
       menuActions: headerMenuActions,
       menuItems: headerMenuItems,
-      messengerLabels: {
-        telegram: 'TG',
-        vk: 'VK',
-        whatsapp: 'WA',
-      },
-      phoneShortLabel: 'Позвонить',
+      messengerLabels: sectionTextDefaults.header.messengerLabels,
+      phoneShortLabel: sectionTextDefaults.header.phoneShortLabel,
     },
   },
   {
     blockKey: 'hero',
-    title: 'Декоративные термопанели для утепления и облицовки фасада',
-    subtitle: 'Фасад частного дома без лишних этапов отделки',
-    body:
-      'Покажем фактуры, подберём сочетание цвета кирпича и шва и быстро дадим предварительный расчёт под ваш фасад.',
-    ctaLabel: 'Рассчитать стоимость',
-    ctaLink: '#calculator',
+    title: sectionTextDefaults.hero.title,
+    subtitle: sectionTextDefaults.hero.subtitle,
+    body: sectionTextDefaults.hero.body,
+    ctaLabel: sectionTextDefaults.hero.ctaLabel,
+    ctaLink: sectionTextDefaults.hero.ctaHref,
     extraData: {
       image: publicFallbackAssets.hero,
-      actions: [{ label: 'Рассчитать стоимость', href: '#calculator', variant: 'primary' }],
-      highlights: [
-        'Три основные фактуры: зернистая, гладкая и клинкерная',
-        'Комбинации оттенка панели и цвета шва под архитектуру дома',
-        'Производство на оборудовании и заводские клеевые составы',
-        'Понятный сценарий: каталог, расчёт, консультация по монтажу',
-      ],
     },
   },
   {
     blockKey: 'product-overview',
-    title: 'Что важно знать о термопанелях',
+    title: sectionTextDefaults.productOverview.title,
     subtitle: '',
     body: '',
-    ctaLabel: 'Рассчитать стоимость',
-    ctaLink: '#calculator',
+    ctaLabel: sectionTextDefaults.productOverview.ctaLabel,
+    ctaLink: sectionTextDefaults.productOverview.ctaHref,
     extraData: {
       badges: [],
       blocks: [
@@ -100,7 +86,7 @@ export const defaultSiteContentBlocks = [
   },
   {
     blockKey: 'why-us',
-    title: 'Почему клиенты выбирают такой подход к фасаду',
+    title: sectionTextDefaults.whyUs.title,
     subtitle: '',
     body: '',
     ctaLabel: '',
@@ -138,87 +124,40 @@ export const defaultSiteContentBlocks = [
   },
   {
     blockKey: 'gallery',
-    title: 'Варианты панелей и фасадов',
+    title: sectionTextDefaults.gallery.title,
     subtitle: '',
     body: '',
-    ctaLabel: 'Получить каталог',
-    ctaLink: '#catalog',
+    ctaLabel: sectionTextDefaults.gallery.ctaLabel,
+    ctaLink: sectionTextDefaults.gallery.ctaHref,
     extraData: {
-      cards: [
-        {
-          image: publicFallbackAssets.galleryGranular,
-          meta: 'Фактура панели',
-          title: 'Зернистая фактура',
-        },
-        {
-          image: publicFallbackAssets.gallerySmooth,
-          meta: 'Фактура панели',
-          title: 'Гладкая фактура',
-        },
-        {
-          image: publicFallbackAssets.galleryClinker,
-          meta: 'Фактура панели',
-          title: 'Клинкерная фактура',
-        },
-        {
-          image: publicFallbackAssets.galleryPalette,
-          meta: 'Цветовые решения',
-          title: 'Комбинации цвета панели и шва',
-        },
-        {
-          image: publicFallbackAssets.galleryLightFacade,
-          meta: 'Подбор цвета',
-          title: 'Светлые фасадные решения',
-        },
-        {
-          image: publicFallbackAssets.galleryContrastFacade,
-          meta: 'Подбор цвета',
-          title: 'Контрастные сочетания',
-        },
-      ],
       hint: '',
     },
   },
   {
     blockKey: 'catalog',
-    title: 'Подберите панель под фасад своего дома',
+    title: sectionTextDefaults.catalog.title,
     subtitle: '',
     body: '',
-    ctaLabel: 'Запросить подбор и расчёт',
-    ctaLink: '#contacts',
+    ctaLabel: sectionTextDefaults.catalog.ctaLabel,
+    ctaLink: sectionTextDefaults.catalog.ctaHref,
     extraData: {},
   },
   {
     blockKey: 'calculator',
-    title: 'Рассчитайте стоимость отделки своего дома',
+    title: sectionTextDefaults.calculator.title,
     subtitle: '',
     body: '',
     ctaLabel: '',
     ctaLink: '',
-    extraData: {
-      installationOptions: [
-        {
-          text: 'Показываем ориентир по материалу и количеству панелей.',
-          title: 'Самостоятельный монтаж',
-          value: 'self',
-        },
-        {
-          text:
-            'Фиксируем интерес к монтажу и подсказываем, что работы уточняются отдельно.',
-          title: 'Нужен расчёт с монтажом',
-          value: 'assisted',
-        },
-      ],
-    },
+    extraData: {},
   },
   {
     blockKey: 'self-install',
-    title: 'Монтаж можно выполнить самостоятельно',
+    title: sectionTextDefaults.selfInstall.title,
     subtitle: '',
-    body:
-      'Монтаж термопанелей — это понятный и последовательный процесс, который можно выполнить самостоятельно после консультации и расчёта.',
-    ctaLabel: 'Получить консультацию',
-    ctaLink: '#contacts',
+    body: sectionTextDefaults.selfInstall.body,
+    ctaLabel: sectionTextDefaults.selfInstall.ctaLabel,
+    ctaLink: sectionTextDefaults.selfInstall.ctaHref,
     extraData: {
       image: publicFallbackAssets.selfInstall,
       mediaText:
@@ -233,13 +172,14 @@ export const defaultSiteContentBlocks = [
   },
   {
     blockKey: 'partners',
-    title: 'Сотрудничество для магазинов, бригад и застройщиков',
+    title: sectionTextDefaults.partners.title,
     subtitle: '',
-    body:
-      'Работаем с партнёрами, которым важно стабильное качество, понятные условия и предсказуемый результат на объектах.',
-    ctaLabel: 'Связаться',
-    ctaLink: '#contacts',
+    body: sectionTextDefaults.partners.description,
+    ctaLabel: sectionTextDefaults.partners.ctaLabel,
+    ctaLink: sectionTextDefaults.partners.ctaHref,
     extraData: {
+      leadBadge: sectionTextDefaults.partners.leadBadge,
+      leadTitle: sectionTextDefaults.partners.leadTitle,
       options: [
         {
           text:
@@ -261,54 +201,29 @@ export const defaultSiteContentBlocks = [
   },
   {
     blockKey: 'contacts',
-    title: 'Свяжитесь удобным способом',
+    title: sectionTextDefaults.contacts.title,
     subtitle: '',
     body: '',
     ctaLabel: '',
     ctaLink: '',
     extraData: {
-      channels: [
-        {
-          actionLabel: 'Позвонить',
-          description: 'Быстрый звонок для расчёта и обсуждения фасада.',
-          key: 'phone',
-          label: 'Телефон',
-        },
-        {
-          actionLabel: 'Написать в WhatsApp',
-          description: 'Можно отправить фото дома и быстро уточнить детали.',
-          key: 'whatsapp',
-          label: 'WhatsApp',
-          value: 'Написать в WhatsApp',
-        },
-        {
-          actionLabel: 'Написать в Telegram',
-          description: 'Удобно для переписки и уточнения деталей.',
-          key: 'telegram',
-          label: 'Telegram',
-          value: 'Написать в Telegram',
-        },
-        {
-          actionLabel: 'Открыть VK',
-          description: 'Можно посмотреть обновления и связаться удобным способом.',
-          key: 'vk',
-          label: 'VK',
-          value: 'Перейти во VK',
-        },
-      ],
+      channels: defaultContactChannelConfigs,
+      introEyebrow: sectionTextDefaults.contacts.introEyebrow,
+      introText: sectionTextDefaults.contacts.introText,
     },
   },
   {
     blockKey: 'footer',
-    title: 'Thermal Panels',
+    title: sectionTextDefaults.header.brandTitle,
     subtitle: '',
-    body: 'Thermal Panels • фасадные термопанели для утепления и облицовки дома',
+    body: sectionTextDefaults.footer.copy,
     ctaLabel: '',
     ctaLink: '',
     extraData: {
-      telegramLabel: 'Telegram',
-      vkLabel: 'VK',
-      whatsappLabel: 'WhatsApp',
+      maxLabel: sectionTextDefaults.footer.maxLabel,
+      telegramLabel: sectionTextDefaults.footer.telegramLabel,
+      vkLabel: sectionTextDefaults.footer.vkLabel,
+      whatsappLabel: sectionTextDefaults.footer.whatsappLabel,
     },
   },
 ]

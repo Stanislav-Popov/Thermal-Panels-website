@@ -1,33 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { sectionTextDefaults } from '../content/siteTextDefaults.js'
 import { Section } from './Section.jsx'
 
 export function FacadeGallerySection({
-  cards,
   description = '',
   examples,
   eyebrow = '',
-  footerActionHref = '#catalog',
-  footerActionLabel = 'Получить каталог',
+  footerActionHref = sectionTextDefaults.gallery.ctaHref,
+  footerActionLabel = sectionTextDefaults.gallery.ctaLabel,
   hint = '',
-  title = 'Варианты панелей и фасадов',
+  title = sectionTextDefaults.gallery.title,
 }) {
-  const galleryItems = useMemo(
-    () => [
-      ...cards.map((card) => ({
-        type: 'panel',
-        title: card.title,
-        label: card.meta,
-        image: card.image,
-      })),
-      ...examples.map((example) => ({
-        type: 'example',
-        title: example.title,
-        label: example.texture,
-        image: example.image,
-      })),
-    ],
-    [cards, examples]
-  )
+  const galleryItems = useMemo(() => examples, [examples])
   const trackRef = useRef(null)
   const [activeIndex, setActiveIndex] = useState(0)
 
@@ -114,34 +98,14 @@ export function FacadeGallerySection({
           {galleryItems.map((item, index) => (
             <article
               className={`gallery-card${index === activeIndex ? ' gallery-card--active' : ''}`}
-              key={`${item.type}-${item.title}`}
+              key={`${item.image}-${item.title}`}
             >
               <img
                 alt={item.title}
                 className="gallery-card__image"
                 src={item.image}
               />
-              <div className="gallery-card__overlay">
-                <span className="gallery-card__badge">
-                  {item.type === 'panel' ? 'Панель' : 'Фасад'}
-                </span>
-                <p className="gallery-card__title">{item.title}</p>
-                <p className="gallery-card__meta">{item.label}</p>
-              </div>
             </article>
-          ))}
-        </div>
-
-        <div className="gallery-dots" aria-label="Навигация по карточкам">
-          {galleryItems.map((item, index) => (
-            <button
-              aria-label={`Показать карточку ${item.title}`}
-              aria-pressed={index === activeIndex}
-              className={`gallery-dots__button${index === activeIndex ? ' gallery-dots__button--active' : ''}`}
-              key={`${item.type}-${item.title}`}
-              onClick={() => scrollToCard(index)}
-              type="button"
-            />
           ))}
         </div>
 

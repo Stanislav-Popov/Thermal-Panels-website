@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
+import { sectionTextDefaults } from '../content/siteTextDefaults.js'
 
 export function HeroSection({
-  actions,
-  eyebrow = 'Термопанели для фасада',
+  action = null,
+  eyebrow = sectionTextDefaults.hero.subtitle,
   image,
-  lead = 'Фактуры под кирпич, варианты цвета и понятный путь к предварительному расчёту стоимости.',
-  title = 'Утепление и облицовка фасада в одном решении',
+  lead = sectionTextDefaults.hero.body,
+  title = sectionTextDefaults.hero.title,
 }) {
   const [scrollRatio, setScrollRatio] = useState(0)
 
@@ -40,7 +41,11 @@ export function HeroSection({
     }
   }, [])
 
-  const primaryAction = actions[0]
+  const primaryAction = action ?? {
+    href: '#calculator',
+    label: 'Рассчитать стоимость',
+    variant: 'primary',
+  }
   const imageStyle = {
     transform: `translate3d(0, ${scrollRatio * 8}%, 0) scale(${1.08 + scrollRatio * 0.06})`,
   }

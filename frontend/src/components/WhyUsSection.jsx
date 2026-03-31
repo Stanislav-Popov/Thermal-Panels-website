@@ -1,10 +1,11 @@
 import { Section } from './Section.jsx'
+import { sectionTextDefaults } from '../content/siteTextDefaults.js'
 
 export function WhyUsSection({
   columns,
   description = '',
   eyebrow = '',
-  title = 'Почему клиенты выбирают такой подход к фасаду',
+  title = sectionTextDefaults.whyUs.title,
 }) {
   return (
     <Section

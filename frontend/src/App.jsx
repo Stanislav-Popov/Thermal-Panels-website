@@ -19,19 +19,20 @@ import {
   comparisonColumns,
   contactChannels,
   headerContacts,
-  heroActions,
   materialFeature,
   materialOverview,
   menuActions,
   menuItems,
-  partnerDescription,
   partnerOptions,
   placeholderImage,
   productDescriptionBlocks,
   projectExamples,
   selfInstallContent,
-  showcaseCards,
 } from './content/landingContent.js'
+import {
+  defaultContactChannelConfigs,
+  sectionTextDefaults,
+} from './content/siteTextDefaults.js'
 
 function findBlock(blocks, blockKey) {
   return blocks.find((block) => block.blockKey === blockKey) ?? null
@@ -97,6 +98,23 @@ function normalizeAction(item) {
   }
 }
 
+function isWhatsappHeaderAction(action) {
+  if (!action || typeof action !== 'object') {
+    return false
+  }
+
+  const label = readText(action.label, '').toLowerCase()
+  const href = readText(action.href, '').toLowerCase()
+
+  return label.includes('whatsapp') || href.includes('wa.me/')
+}
+
+function filterHeaderMenuActions(actions) {
+  return Array.isArray(actions)
+    ? actions.filter((action) => !isWhatsappHeaderAction(action))
+    : []
+}
+
 function normalizeTitleTextItem(item) {
   if (!item || typeof item !== 'object') {
     return null
@@ -129,38 +147,6 @@ function normalizeComparisonColumn(item) {
     title,
     variant: readText(item.variant, 'muted'),
   }
-}
-
-function normalizeGalleryCard(item) {
-  if (!item || typeof item !== 'object') {
-    return null
-  }
-
-  const title = readText(item.title, '')
-  const meta = readText(item.meta, '')
-  const image = readText(item.image, '')
-
-  if (!title || !meta || !image) {
-    return null
-  }
-
-  return { image, meta, title }
-}
-
-function normalizeInstallationOption(item) {
-  if (!item || typeof item !== 'object') {
-    return null
-  }
-
-  const value = readText(item.value, '')
-  const title = readText(item.title, '')
-  const text = readText(item.text, '')
-
-  if (!value || !title || !text) {
-    return null
-  }
-
-  return { text, title, value }
 }
 
 function normalizeChannelConfig(item) {
@@ -197,99 +183,134 @@ function sanitizeExternalHref(value) {
   return hasConfiguredExternalUrl(value) ? value.trim() : ''
 }
 
+const systemContactChannelKeys = new Set([
+  'phone',
+  'whatsapp',
+  'telegram',
+  'max',
+  'vk',
+])
+
+const defaultContactChannelConfigByKey = new Map(
+  defaultContactChannelConfigs.map((item) => [item.key, item])
+)
+
+let publicBootstrapRequest = null
+
 function createHeaderContacts(contacts) {
   return {
     phoneLabel: contacts.phone,
     phoneHref: normalizePhoneHref(contacts.phone),
+    maxHref: sanitizeExternalHref(contacts.maxUrl),
     telegramHref: sanitizeExternalHref(contacts.telegramUrl),
     vkHref: sanitizeExternalHref(contacts.vkUrl),
     whatsappHref: sanitizeExternalHref(contacts.whatsappUrl),
   }
 }
 
-function createContactChannels(contacts, configs = null) {
-  const fallbackChannels = [
-    {
-      actionLabel: 'Позвонить',
-      description: 'Быстрый звонок для расчёта и обсуждения фасада.',
-      href: normalizePhoneHref(contacts.phone),
-      label: 'Телефон',
-      value: contacts.phone,
-    },
-    {
-      actionLabel: 'Написать в WhatsApp',
-      description: 'Можно отправить фото дома и быстро уточнить детали.',
-      external: true,
-      href: contacts.whatsappUrl,
-      label: 'WhatsApp',
-      value: 'Написать в WhatsApp',
-    },
-    {
-      actionLabel: 'Написать в Telegram',
-      description: 'Удобно для переписки и уточнения деталей.',
-      external: true,
-      href: contacts.telegramUrl,
-      label: 'Telegram',
-      value: 'Написать в Telegram',
-    },
-    {
-      actionLabel: 'Открыть VK',
-      description: 'Можно посмотреть обновления и связаться удобным способом.',
-      external: true,
-      href: contacts.vkUrl,
-      label: 'VK',
-      value: 'Перейти во VK',
-    },
+function getDefaultContactChannelHref(channelKey, contacts) {
+  switch (channelKey) {
+    case 'phone':
+      return normalizePhoneHref(contacts.phone)
+    case 'whatsapp':
+      return sanitizeExternalHref(contacts.whatsappUrl)
+    case 'telegram':
+      return sanitizeExternalHref(contacts.telegramUrl)
+    case 'max':
+      return sanitizeExternalHref(contacts.maxUrl)
+    case 'vk':
+      return sanitizeExternalHref(contacts.vkUrl)
+    default:
+      return ''
+  }
+}
+
+function getDefaultContactChannelValue(channelKey, contacts) {
+  switch (channelKey) {
+    case 'phone':
+      return contacts.phone
+    case 'whatsapp':
+      return 'Написать в WhatsApp'
+    case 'telegram':
+      return 'Написать в Telegram'
+    case 'max':
+      return 'Написать в Max'
+    case 'vk':
+      return 'Перейти во VK'
+    default:
+      return ''
+  }
+}
+
+function buildContactChannel(channelConfig, contacts) {
+  const fallbackConfig = defaultContactChannelConfigByKey.get(channelConfig.key)
+  const isSystemChannel = systemContactChannelKeys.has(channelConfig.key)
+  const href = isSystemChannel
+    ? getDefaultContactChannelHref(channelConfig.key, contacts)
+    : readText(
+        channelConfig.href,
+        getDefaultContactChannelHref(channelConfig.key, contacts)
+      )
+
+  if (!href) {
+    return null
+  }
+
+  return {
+    actionLabel: readText(
+      channelConfig.actionLabel,
+      fallbackConfig?.actionLabel ?? ''
+    ),
+    description: readText(
+      channelConfig.description,
+      fallbackConfig?.description ?? ''
+    ),
+    external: isSystemChannel
+      ? fallbackConfig?.external === true
+      : typeof channelConfig.external === 'boolean'
+        ? channelConfig.external
+        : fallbackConfig?.external === true,
+    href,
+    key: channelConfig.key,
+    label: readText(channelConfig.label, fallbackConfig?.label ?? ''),
+    value: readText(
+      channelConfig.value,
+      getDefaultContactChannelValue(channelConfig.key, contacts) ||
+        fallbackConfig?.value ||
+        ''
+    ),
+  }
+}
+
+function mergeContactChannelConfigs(configs = null) {
+  if (!Array.isArray(configs) || configs.length === 0) {
+    return defaultContactChannelConfigs
+  }
+
+  const existingKeys = new Set(
+    configs.map((item) => readText(item?.key, '')).filter(Boolean)
+  )
+
+  return [
+    ...configs,
+    ...defaultContactChannelConfigs.filter((item) => !existingKeys.has(item.key)),
   ]
+}
 
-  if (!configs || configs.length === 0) {
-    return fallbackChannels
-  }
+function createContactChannels(contacts, configs = null) {
+  const sourceConfigs = mergeContactChannelConfigs(configs)
 
-  const contactValues = {
-    phone: {
-      external: false,
-      href: normalizePhoneHref(contacts.phone),
-      value: contacts.phone,
-    },
-    telegram: {
-      external: true,
-      href: sanitizeExternalHref(contacts.telegramUrl),
-      value: 'Написать в Telegram',
-    },
-    vk: {
-      external: true,
-      href: sanitizeExternalHref(contacts.vkUrl),
-      value: 'Перейти во VK',
-    },
-    whatsapp: {
-      external: true,
-      href: sanitizeExternalHref(contacts.whatsappUrl),
-      value: 'Написать в WhatsApp',
-    },
-  }
-
-  const resolvedChannels = configs
-    .map((config) => {
-      const source = contactValues[config.key]
-      const resolvedHref = config.href || source?.href || ''
-
-      if ((!source && !config.href) || !resolvedHref) {
-        return null
-      }
-
-      return {
-        actionLabel: config.actionLabel,
-        description: config.description,
-        external: source ? source.external : config.external,
-        href: resolvedHref,
-        label: config.label,
-        value: config.value || source.value,
-      }
-    })
+  const resolvedChannels = sourceConfigs
+    .map((config) => buildContactChannel(config, contacts))
     .filter(Boolean)
 
-  return resolvedChannels.length > 0 ? resolvedChannels : fallbackChannels
+  if (resolvedChannels.length > 0) {
+    return resolvedChannels
+  }
+
+  return defaultContactChannelConfigs
+    .map((config) => buildContactChannel(config, contacts))
+    .filter(Boolean)
 }
 
 function createShowcaseExamples(showcaseObjects) {
@@ -302,31 +323,44 @@ function createShowcaseExamples(showcaseObjects) {
   }))
 }
 
+function loadInitialPublicData() {
+  if (!publicBootstrapRequest) {
+    publicBootstrapRequest = Promise.allSettled([
+      fetchProducts(),
+      fetchSiteContent(),
+    ]).finally(() => {
+      publicBootstrapRequest = null
+    })
+  }
+
+  return publicBootstrapRequest
+}
+
 function App() {
   const [products, setProducts] = useState([])
   const [isProductsLoading, setIsProductsLoading] = useState(true)
   const [productsError, setProductsError] = useState('')
   const [siteContent, setSiteContent] = useState(null)
+  const [siteContentError, setSiteContentError] = useState('')
 
   useEffect(() => {
-    const controller = new AbortController()
+    let isMounted = true
 
     async function loadData() {
       setIsProductsLoading(true)
       setProductsError('')
+      setSiteContentError('')
 
-      const [productsResult, siteContentResult] = await Promise.allSettled([
-        fetchProducts(controller.signal),
-        fetchSiteContent(controller.signal),
-      ])
+      const [productsResult, siteContentResult] = await loadInitialPublicData()
 
-      if (controller.signal.aborted) {
+      if (!isMounted) {
         return
       }
 
       if (productsResult.status === 'fulfilled') {
         setProducts(productsResult.value)
-      } else if (productsResult.reason?.name !== 'AbortError') {
+      } else {
+        setProducts([])
         setProductsError(
           productsResult.reason?.message ?? 'Не удалось загрузить каталог.'
         )
@@ -334,24 +368,28 @@ function App() {
 
       if (siteContentResult.status === 'fulfilled') {
         setSiteContent(siteContentResult.value)
-      } else if (siteContentResult.reason?.name !== 'AbortError') {
+      } else {
         setSiteContent(null)
+        setSiteContentError(
+          siteContentResult.reason?.message ??
+            'Не удалось загрузить часть редактируемого контента.'
+        )
       }
 
-      if (!controller.signal.aborted) {
+      if (isMounted) {
         setIsProductsLoading(false)
       }
     }
 
     loadData().catch((error) => {
-      if (error.name !== 'AbortError' && !controller.signal.aborted) {
+      if (isMounted) {
         setProductsError(error.message)
         setIsProductsLoading(false)
       }
     })
 
     return () => {
-      controller.abort()
+      isMounted = false
     }
   }, [])
 
@@ -374,22 +412,33 @@ function App() {
 
   const resolvedHeaderContent = {
     brand: {
-      badge: readText(headerBlock?.extraData?.brandBadge, 'TP'),
+      badge: readText(
+        headerBlock?.extraData?.brandBadge,
+        sectionTextDefaults.header.brandBadge
+      ),
       subtitle: readText(
         headerBlock?.subtitle,
-        'Утепление и облицовка фасада'
+        sectionTextDefaults.header.brandSubtitle
       ),
-      title: readText(headerBlock?.title, 'Thermal Panels'),
+      title: readText(headerBlock?.title, sectionTextDefaults.header.brandTitle),
     },
     cta: {
-      href: readText(headerBlock?.ctaLink, '#calculator'),
-      label: readText(headerBlock?.ctaLabel, 'Рассчитать стоимость'),
-      shortLabel: readText(headerBlock?.extraData?.ctaShortLabel, 'Расчёт'),
+      href: readText(headerBlock?.ctaLink, sectionTextDefaults.header.ctaHref),
+      label: readText(
+        headerBlock?.ctaLabel,
+        sectionTextDefaults.header.ctaLabel
+      ),
+      shortLabel: readText(
+        headerBlock?.extraData?.ctaShortLabel,
+        sectionTextDefaults.header.ctaShortLabel
+      ),
     },
-    menuActions: readObjectArray(
-      headerBlock?.extraData?.menuActions,
-      normalizeAction,
-      menuActions
+    menuActions: filterHeaderMenuActions(
+      readObjectArray(
+        headerBlock?.extraData?.menuActions,
+        normalizeAction,
+        menuActions
+      )
     ),
     menuItems: readObjectArray(
       headerBlock?.extraData?.menuItems,
@@ -397,13 +446,22 @@ function App() {
       menuItems
     ),
     messengerLabels: {
-      telegram: readText(headerBlock?.extraData?.messengerLabels?.telegram, 'TG'),
-      vk: readText(headerBlock?.extraData?.messengerLabels?.vk, 'VK'),
-      whatsapp: readText(headerBlock?.extraData?.messengerLabels?.whatsapp, 'WA'),
+      telegram: readText(
+        headerBlock?.extraData?.messengerLabels?.telegram,
+        sectionTextDefaults.header.messengerLabels.telegram
+      ),
+      vk: readText(
+        headerBlock?.extraData?.messengerLabels?.vk,
+        sectionTextDefaults.header.messengerLabels.vk
+      ),
+      whatsapp: readText(
+        headerBlock?.extraData?.messengerLabels?.whatsapp,
+        sectionTextDefaults.header.messengerLabels.whatsapp
+      ),
     },
     phoneShortLabel: readText(
       headerBlock?.extraData?.phoneShortLabel,
-      'Позвонить'
+      sectionTextDefaults.header.phoneShortLabel
     ),
   }
 
@@ -423,18 +481,20 @@ function App() {
       : projectExamples
 
   const resolvedHeroContent = {
-    actions:
-      readObjectArray(heroBlock?.extraData?.actions, normalizeAction, null) ??
-      heroActions,
-    eyebrow: readText(heroBlock?.subtitle, 'Термопанели для фасада'),
+    action: {
+      href: readText(heroBlock?.ctaLink, sectionTextDefaults.hero.ctaHref),
+      label: readText(heroBlock?.ctaLabel, sectionTextDefaults.hero.ctaLabel),
+      variant: 'primary',
+    },
+    eyebrow: readText(heroBlock?.subtitle, sectionTextDefaults.hero.subtitle),
     image: readText(heroBlock?.extraData?.image, placeholderImage),
     lead: readText(
       heroBlock?.body,
-      'Покажем фактуры, подберём сочетание цвета кирпича и шва и быстро дадим предварительный расчёт под ваш фасад.'
+      sectionTextDefaults.hero.body
     ),
     title: readText(
       heroBlock?.title,
-      'Декоративные термопанели для утепления и облицовки фасада'
+      sectionTextDefaults.hero.title
     ),
   }
 
@@ -446,10 +506,13 @@ function App() {
       productDescriptionBlocks
     ),
     composition: readStringArray(productOverviewBlock?.extraData?.composition, []),
-    ctaHref: readText(productOverviewBlock?.ctaLink, '#calculator'),
+    ctaHref: readText(
+      productOverviewBlock?.ctaLink,
+      sectionTextDefaults.productOverview.ctaHref
+    ),
     ctaLabel: readText(
       productOverviewBlock?.ctaLabel,
-      'Рассчитать стоимость'
+      sectionTextDefaults.productOverview.ctaLabel
     ),
     description: readText(productOverviewBlock?.body, ''),
     eyebrow: readText(productOverviewBlock?.subtitle, ''),
@@ -473,7 +536,7 @@ function App() {
     ),
     title: readText(
       productOverviewBlock?.title,
-      'Что важно знать о термопанелях'
+      sectionTextDefaults.productOverview.title
     ),
   }
 
@@ -487,55 +550,56 @@ function App() {
     eyebrow: readText(whyUsBlock?.subtitle, ''),
     title: readText(
       whyUsBlock?.title,
-      'Почему клиенты выбирают такой подход к фасаду'
+      sectionTextDefaults.whyUs.title
     ),
   }
 
   const resolvedGalleryContent = {
-    cards: readObjectArray(
-      galleryBlock?.extraData?.cards,
-      normalizeGalleryCard,
-      showcaseCards
-    ),
     description: readText(galleryBlock?.body, ''),
     eyebrow: readText(galleryBlock?.subtitle, ''),
-    footerActionHref: readText(galleryBlock?.ctaLink, '#catalog'),
-    footerActionLabel: readText(galleryBlock?.ctaLabel, 'Получить каталог'),
+    footerActionHref: readText(
+      galleryBlock?.ctaLink,
+      sectionTextDefaults.gallery.ctaHref
+    ),
+    footerActionLabel: readText(
+      galleryBlock?.ctaLabel,
+      sectionTextDefaults.gallery.ctaLabel
+    ),
     hint: readText(galleryBlock?.extraData?.hint, ''),
-    title: readText(galleryBlock?.title, 'Варианты панелей и фасадов'),
+    title: readText(galleryBlock?.title, sectionTextDefaults.gallery.title),
   }
 
   const resolvedCatalogContent = {
+    ctaHref: readText(catalogBlock?.ctaLink, sectionTextDefaults.catalog.ctaHref),
+    ctaLabel: readText(
+      catalogBlock?.ctaLabel,
+      sectionTextDefaults.catalog.ctaLabel
+    ),
     description: readText(catalogBlock?.body, ''),
     eyebrow: readText(catalogBlock?.subtitle, ''),
     title: readText(
       catalogBlock?.title,
-      'Подберите панель под фасад своего дома'
+      sectionTextDefaults.catalog.title
     ),
   }
 
   const resolvedCalculatorContent = {
-    description: readText(calculatorBlock?.body, ''),
-    eyebrow: readText(calculatorBlock?.subtitle, ''),
-    installationOptions:
-      readObjectArray(
-        calculatorBlock?.extraData?.installationOptions,
-        normalizeInstallationOption,
-        null
-      ) ?? undefined,
     title: readText(
       calculatorBlock?.title,
-      'Рассчитайте стоимость отделки своего дома'
+      sectionTextDefaults.calculator.title
     ),
   }
 
   const resolvedSelfInstallContent = {
     ...selfInstallContent,
     body: readText(selfInstallBlock?.body, selfInstallContent.body),
-    ctaHref: readText(selfInstallBlock?.ctaLink, '#contacts'),
+    ctaHref: readText(
+      selfInstallBlock?.ctaLink,
+      sectionTextDefaults.selfInstall.ctaHref
+    ),
     ctaLabel: readText(
       selfInstallBlock?.ctaLabel,
-      'Получить консультацию'
+      sectionTextDefaults.selfInstall.ctaLabel
     ),
     description: '',
     eyebrow: readText(selfInstallBlock?.subtitle, ''),
@@ -554,7 +618,7 @@ function App() {
         : selfInstallContent.points,
     title: readText(
       selfInstallBlock?.title,
-      'Монтаж можно выполнить самостоятельно'
+      sectionTextDefaults.selfInstall.title
     ),
     videoLabel: readText(
       selfInstallBlock?.extraData?.videoLabel,
@@ -563,10 +627,27 @@ function App() {
   }
 
   const resolvedPartnersContent = {
-    ctaHref: readText(partnersBlock?.ctaLink, '#contacts'),
-    ctaLabel: readText(partnersBlock?.ctaLabel, 'Обсудить условия'),
-    description: readText(partnersBlock?.body, partnerDescription),
+    ctaHref: readText(
+      partnersBlock?.ctaLink,
+      sectionTextDefaults.partners.ctaHref
+    ),
+    ctaLabel: readText(
+      partnersBlock?.ctaLabel,
+      sectionTextDefaults.partners.ctaLabel
+    ),
+    description: readText(
+      partnersBlock?.body,
+      sectionTextDefaults.partners.description
+    ),
     eyebrow: readText(partnersBlock?.subtitle, ''),
+    leadBadge: readText(
+      partnersBlock?.extraData?.leadBadge,
+      sectionTextDefaults.partners.leadBadge
+    ),
+    leadTitle: readText(
+      partnersBlock?.extraData?.leadTitle,
+      sectionTextDefaults.partners.leadTitle
+    ),
     options: readObjectArray(
       partnersBlock?.extraData?.options,
       normalizeTitleTextItem,
@@ -574,29 +655,44 @@ function App() {
     ),
     title: readText(
       partnersBlock?.title,
-      'Сотрудничество для магазинов, бригад и застройщиков'
+      sectionTextDefaults.partners.title
     ),
   }
 
   const resolvedContactsContent = {
     description: readText(contactsBlock?.body, ''),
     eyebrow: readText(contactsBlock?.subtitle, ''),
-    title: readText(contactsBlock?.title, 'Свяжитесь удобным способом'),
+    introEyebrow: readText(
+      contactsBlock?.extraData?.introEyebrow,
+      sectionTextDefaults.contacts.introEyebrow
+    ),
+    introText: readText(
+      contactsBlock?.extraData?.introText,
+      sectionTextDefaults.contacts.introText
+    ),
+    title: readText(contactsBlock?.title, sectionTextDefaults.contacts.title),
   }
 
   const resolvedFooterContent = {
     copy: readText(
       footerBlock?.body,
-      'Thermal Panels • фасадные термопанели для утепления и облицовки дома'
+      sectionTextDefaults.footer.copy
+    ),
+    maxLabel: readText(
+      footerBlock?.extraData?.maxLabel,
+      sectionTextDefaults.footer.maxLabel
     ),
     telegramLabel: readText(
       footerBlock?.extraData?.telegramLabel,
-      'Telegram'
+      sectionTextDefaults.footer.telegramLabel
     ),
-    vkLabel: readText(footerBlock?.extraData?.vkLabel, 'VK'),
+    vkLabel: readText(
+      footerBlock?.extraData?.vkLabel,
+      sectionTextDefaults.footer.vkLabel
+    ),
     whatsappLabel: readText(
       footerBlock?.extraData?.whatsappLabel,
-      'WhatsApp'
+      sectionTextDefaults.footer.whatsappLabel
     ),
   }
 
@@ -618,9 +714,14 @@ function App() {
         messengerLabels={resolvedHeaderContent.messengerLabels}
         phoneShortLabel={resolvedHeaderContent.phoneShortLabel}
       />
+      {siteContentError ? (
+        <div aria-live="polite" className="page-shell__notice">
+          Часть контента временно загружена из резервных данных. {siteContentError}
+        </div>
+      ) : null}
       <main>
         <HeroSection
-          actions={resolvedHeroContent.actions}
+          action={resolvedHeroContent.action}
           eyebrow={resolvedHeroContent.eyebrow}
           image={resolvedHeroContent.image}
           lead={resolvedHeroContent.lead}
@@ -645,7 +746,6 @@ function App() {
           title={resolvedWhyUsContent.title}
         />
         <FacadeGallerySection
-          cards={resolvedGalleryContent.cards}
           description={resolvedGalleryContent.description}
           examples={resolvedProjectExamples}
           eyebrow={resolvedGalleryContent.eyebrow}
@@ -655,6 +755,9 @@ function App() {
           title={resolvedGalleryContent.title}
         />
         <CatalogSection
+          contacts={resolvedHeaderContacts}
+          ctaHref={resolvedCatalogContent.ctaHref}
+          ctaLabel={resolvedCatalogContent.ctaLabel}
           description={resolvedCatalogContent.description}
           eyebrow={resolvedCatalogContent.eyebrow}
           error={productsError}
@@ -663,11 +766,7 @@ function App() {
           title={resolvedCatalogContent.title}
         />
         <CalculatorSection
-          contacts={resolvedHeaderContacts}
-          description={resolvedCalculatorContent.description}
           error={productsError}
-          eyebrow={resolvedCalculatorContent.eyebrow}
-          installationOptions={resolvedCalculatorContent.installationOptions}
           isLoading={isProductsLoading}
           products={products}
           title={resolvedCalculatorContent.title}
@@ -678,6 +777,8 @@ function App() {
           ctaLabel={resolvedPartnersContent.ctaLabel}
           description={resolvedPartnersContent.description}
           eyebrow={resolvedPartnersContent.eyebrow}
+          leadBadge={resolvedPartnersContent.leadBadge}
+          leadTitle={resolvedPartnersContent.leadTitle}
           options={resolvedPartnersContent.options}
           title={resolvedPartnersContent.title}
         />
@@ -685,12 +786,15 @@ function App() {
           channels={resolvedContactChannels}
           description={resolvedContactsContent.description}
           eyebrow={resolvedContactsContent.eyebrow}
+          introEyebrow={resolvedContactsContent.introEyebrow}
+          introText={resolvedContactsContent.introText}
           title={resolvedContactsContent.title}
         />
       </main>
       <Footer
         contacts={resolvedHeaderContacts}
         copy={resolvedFooterContent.copy}
+        maxLabel={resolvedFooterContent.maxLabel}
         telegramLabel={resolvedFooterContent.telegramLabel}
         vkLabel={resolvedFooterContent.vkLabel}
         whatsappLabel={resolvedFooterContent.whatsappLabel}

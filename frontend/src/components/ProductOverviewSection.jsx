@@ -1,16 +1,17 @@
 import { Section } from './Section.jsx'
+import { sectionTextDefaults } from '../content/siteTextDefaults.js'
 
 export function ProductOverviewSection({
   badges = [],
   blocks,
-  ctaHref = '#calculator',
-  ctaLabel = 'Рассчитать стоимость',
+  ctaHref = sectionTextDefaults.productOverview.ctaHref,
+  ctaLabel = sectionTextDefaults.productOverview.ctaLabel,
   composition = [],
   description = '',
   eyebrow = '',
   feature,
   overview,
-  title = 'Что важно знать о термопанелях',
+  title = sectionTextDefaults.productOverview.title,
 }) {
   return (
     <Section

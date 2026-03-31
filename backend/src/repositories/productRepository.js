@@ -53,7 +53,10 @@ function mapProductRow(row) {
     isHidden: row.is_hidden,
     gallery: (row.gallery ?? []).map((image) => ({
       id: image.id,
-      image: resolveProductImagePath(image.image, image.kind),
+      image: resolveProductImagePath(image.image, image.kind, {
+        productSlug: row.slug,
+        sortOrder: Number(image.sortOrder),
+      }),
       alt: image.alt,
       kind: image.kind,
       note: image.note,

@@ -16,6 +16,10 @@ import {
   updateAdminSiteContentBlock,
 } from './adminApi.js'
 import {
+  getContentBlockEditorMeta,
+  supportsStructuredContentEditor,
+} from './siteContentEditorMeta.js'
+import {
   getBlockMaterialGapCount,
   getContactsMaterialGapCount,
   getProductMaterialGapCount,
@@ -33,145 +37,32 @@ const tabItems = [
   { id: 'contacts', label: 'Контакты' },
 ]
 
-const contentBlockMeta = {
-  header: {
-    description:
-      'Логотип, подпись бренда, навигация и быстрые CTA в фиксированной шапке сайта.',
-    label: 'Header',
-    primaryFields: [
-      { label: 'Название бренда', name: 'title' },
-      { label: 'Подпись под брендом', name: 'subtitle' },
-      { label: 'Текст главной кнопки', name: 'ctaLabel' },
-      { label: 'Ссылка главной кнопки', name: 'ctaLink' },
-    ],
-  },
-  hero: {
-    description: 'Первый экран: УТП, описание, главная CTA и тезисы под оффером.',
-    label: 'Первый экран',
-    primaryFields: [
-      { label: 'Заголовок', name: 'title' },
-      { label: 'Подзаголовок', name: 'subtitle' },
-      { label: 'Текст под оффером', multiline: true, name: 'body' },
-      { label: 'Текст основной CTA', name: 'ctaLabel' },
-      { label: 'Ссылка основной CTA', name: 'ctaLink' },
-    ],
-  },
-  'product-overview': {
-    description:
-      'Описание материала, состав, ключевые тезисы и блок с главным изображением.',
-    label: 'Описание продукта',
-    primaryFields: [
-      { label: 'Заголовок', name: 'title' },
-      { label: 'Подзаголовок секции', name: 'subtitle' },
-      { label: 'Вводный текст', multiline: true, name: 'body' },
-      { label: 'Текст CTA', name: 'ctaLabel' },
-      { label: 'Ссылка CTA', name: 'ctaLink' },
-    ],
-  },
-  'why-us': {
-    description:
-      'Сравнительный блок с двумя колонками: как часто бывает на рынке и как работает компания.',
-    label: 'Почему мы',
-    primaryFields: [
-      { label: 'Заголовок', name: 'title' },
-      { label: 'Подзаголовок', name: 'subtitle' },
-      { label: 'Короткое описание', multiline: true, name: 'body' },
-    ],
-  },
-  gallery: {
-    description:
-      'Карусель с фактурами и подсказками. Примеры объектов редактируются отдельно во вкладке "Объекты".',
-    label: 'Галерея',
-    primaryFields: [
-      { label: 'Заголовок', name: 'title' },
-      { label: 'Подзаголовок', name: 'subtitle' },
-      { label: 'Описание секции', multiline: true, name: 'body' },
-      { label: 'Текст кнопки под галереей', name: 'ctaLabel' },
-      { label: 'Ссылка кнопки под галереей', name: 'ctaLink' },
-    ],
-  },
-  catalog: {
-    description: 'Вступительный текст перед каталогом товаров и вспомогательная CTA.',
-    label: 'Каталог',
-    primaryFields: [
-      { label: 'Заголовок', name: 'title' },
-      { label: 'Подзаголовок', name: 'subtitle' },
-      { label: 'Описание каталога', multiline: true, name: 'body' },
-      { label: 'Текст дополнительной CTA', name: 'ctaLabel' },
-      { label: 'Ссылка дополнительной CTA', name: 'ctaLink' },
-    ],
-  },
-  calculator: {
-    description:
-      'Заголовки калькулятора и варианты расчёта: самостоятельный монтаж или расчёт с монтажом.',
-    label: 'Калькулятор',
-    primaryFields: [
-      { label: 'Заголовок', name: 'title' },
-      { label: 'Подзаголовок', name: 'subtitle' },
-      { label: 'Описание калькулятора', multiline: true, name: 'body' },
-    ],
-  },
-  'self-install': {
-    description:
-      'Блок о самостоятельном монтаже: обложка, подпись поверх изображения, тезисы и CTA.',
-    label: 'Самостоятельный монтаж',
-    primaryFields: [
-      { label: 'Заголовок', name: 'title' },
-      { label: 'Подзаголовок', name: 'subtitle' },
-      { label: 'Основной текст карточки', multiline: true, name: 'body' },
-      { label: 'Текст CTA', name: 'ctaLabel' },
-      { label: 'Ссылка CTA', name: 'ctaLink' },
-    ],
-  },
-  partners: {
-    description: 'Оффер для магазинов, бригад, прорабов и частных застройщиков.',
-    label: 'Партнёрам',
-    primaryFields: [
-      { label: 'Заголовок', name: 'title' },
-      { label: 'Подзаголовок', name: 'subtitle' },
-      { label: 'Вводный текст', multiline: true, name: 'body' },
-      { label: 'Текст CTA', name: 'ctaLabel' },
-      { label: 'Ссылка CTA', name: 'ctaLink' },
-    ],
-  },
-  contacts: {
-    description:
-      'Тексты контактной секции и порядок карточек связи. Сами ссылки меняются во вкладке "Контакты".',
-    label: 'Контакты',
-    primaryFields: [
-      { label: 'Заголовок', name: 'title' },
-      { label: 'Подзаголовок', name: 'subtitle' },
-      { label: 'Описание секции', multiline: true, name: 'body' },
-    ],
-  },
-  footer: {
-    description: 'Подпись в футере и короткие названия для иконок мессенджеров.',
-    label: 'Footer',
-    primaryFields: [
-      { label: 'Название бренда', name: 'title' },
-      { label: 'Подпись в футере', multiline: true, name: 'body' },
-    ],
-  },
+const adminDashboardRequests = new Map()
+
+function requestAdminDashboard(token) {
+  if (!adminDashboardRequests.has(token)) {
+    adminDashboardRequests.set(
+      token,
+      fetchAdminDashboard(token).finally(() => {
+        adminDashboardRequests.delete(token)
+      })
+    )
+  }
+
+  return adminDashboardRequests.get(token)
 }
 
-function getContentBlockMeta(blockKey) {
-  return (
-    contentBlockMeta[blockKey] ?? {
-      description: 'Редактирование текста и дополнительных JSON-настроек секции.',
-      label: blockKey || 'Контентный блок',
-      primaryFields: [
-        { label: 'Заголовок', name: 'title' },
-        { label: 'Подзаголовок', name: 'subtitle' },
-        { label: 'Текст', multiline: true, name: 'body' },
-        { label: 'Текст CTA', name: 'ctaLabel' },
-        { label: 'Ссылка CTA', name: 'ctaLink' },
-      ],
-    }
-  )
-}
+function formatDashboardErrors(errors) {
+  if (!Array.isArray(errors) || errors.length === 0) {
+    return ''
+  }
 
-function supportsStructuredContentEditor(blockKey) {
-  return Object.hasOwn(contentBlockMeta, blockKey)
+  const labels = errors.map((item) => item.label).filter(Boolean)
+  const details = errors.map((item) => item.message).filter(Boolean)
+  const summary = labels.length > 0 ? labels.join(', ') : 'часть данных'
+  const detailText = details[0] ? ` ${details[0]}` : ''
+
+  return `Не все данные админки удалось загрузить (${summary}). Остальные разделы доступны.${detailText}`
 }
 
 function stringifyContentExtraData(value) {
@@ -255,6 +146,7 @@ function createEmptyContactsForm() {
     phone: '',
     whatsappUrl: '',
     telegramUrl: '',
+    maxUrl: '',
     vkUrl: '',
     address: '',
     workingHours: '',
@@ -322,6 +214,7 @@ function mapContactsToForm(contacts) {
         phone: contacts.phone,
         whatsappUrl: contacts.whatsappUrl,
         telegramUrl: contacts.telegramUrl,
+        maxUrl: contacts.maxUrl ?? '',
         vkUrl: contacts.vkUrl,
         address: contacts.address,
         workingHours: contacts.workingHours,
@@ -331,6 +224,50 @@ function mapContactsToForm(contacts) {
 
 function normalizeOptionalText(value) {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function validateRequiredNumberField(value, fieldLabel, { min = 0 } = {}) {
+  const normalizedValue = normalizeOptionalText(value)
+
+  if (!normalizedValue) {
+    return `${fieldLabel} обязательно.`
+  }
+
+  const numericValue = Number(normalizedValue)
+
+  if (!Number.isFinite(numericValue) || numericValue < min) {
+    return `${fieldLabel} должно быть числом не меньше ${min}.`
+  }
+
+  return ''
+}
+
+function validateOptionalNumberField(value, fieldLabel, { min = 0 } = {}) {
+  const normalizedValue = normalizeOptionalText(value)
+
+  if (!normalizedValue) {
+    return ''
+  }
+
+  const numericValue = Number(normalizedValue)
+
+  if (!Number.isFinite(numericValue) || numericValue < min) {
+    return `${fieldLabel} должно быть числом не меньше ${min}.`
+  }
+
+  return ''
+}
+
+function validateProductForm(form) {
+  return (
+    validateRequiredNumberField(form.panelArea, 'Площадь панели', { min: 0.01 }) ||
+    validateRequiredNumberField(form.priceCurrent, 'Текущая цена', { min: 0 }) ||
+    validateOptionalNumberField(form.priceOld, 'Старая цена', { min: 0 })
+  )
+}
+
+function validateContentBlockExtraData() {
+  return ''
 }
 
 function formatPrice(value) {
@@ -821,170 +758,6 @@ function ComparisonColumnsEditor({ items, onChange }) {
   )
 }
 
-function GalleryCardsEditor({ items, onChange }) {
-  const normalizedItems = ensureArray(items)
-
-  return (
-    <ContentEditorCard
-      actions={
-        <button
-          className="admin-button admin-button--ghost"
-          onClick={() => onChange([...normalizedItems, { image: '', meta: '', title: '' }])}
-          type="button"
-        >
-          Добавить карточку
-        </button>
-      }
-      description="Карточки фактур и цветовых решений в карусели."
-      title="Карточки галереи"
-    >
-      <div className="admin-editor-list">
-        {normalizedItems.length > 0 ? (
-          normalizedItems.map((item, index) => (
-            <ContentEditorItem
-              key={`gallery-card-${index}`}
-              onRemove={() => onChange(removeArrayItem(normalizedItems, index))}
-              title={`Карточка ${index + 1}`}
-            >
-              <div className="admin-grid admin-grid--two">
-                <AdminField label="Заголовок">
-                  <input
-                    className="admin-input"
-                    onChange={(event) =>
-                      onChange(
-                        replaceArrayItem(normalizedItems, index, {
-                          ...ensureObject(item),
-                          title: event.target.value,
-                        })
-                      )
-                    }
-                    value={item?.title ?? ''}
-                  />
-                </AdminField>
-                <AdminField label="Мета-подпись">
-                  <input
-                    className="admin-input"
-                    onChange={(event) =>
-                      onChange(
-                        replaceArrayItem(normalizedItems, index, {
-                          ...ensureObject(item),
-                          meta: event.target.value,
-                        })
-                      )
-                    }
-                    value={item?.meta ?? ''}
-                  />
-                </AdminField>
-              </div>
-              <AdminField label="Путь к изображению">
-                <input
-                  className="admin-input"
-                  onChange={(event) =>
-                    onChange(
-                      replaceArrayItem(normalizedItems, index, {
-                        ...ensureObject(item),
-                        image: event.target.value,
-                      })
-                    )
-                  }
-                  value={item?.image ?? ''}
-                />
-              </AdminField>
-              <ContentImagePreview
-                alt={item?.title || 'Предпросмотр карточки галереи'}
-                src={item?.image}
-              />
-            </ContentEditorItem>
-          ))
-        ) : (
-          <div className="admin-editor-empty">Пока нет карточек галереи.</div>
-        )}
-      </div>
-    </ContentEditorCard>
-  )
-}
-
-function InstallationOptionsEditor({ items, onChange }) {
-  const normalizedItems = ensureArray(items)
-
-  return (
-    <ContentEditorCard
-      actions={
-        <button
-          className="admin-button admin-button--ghost"
-          onClick={() =>
-            onChange([...normalizedItems, { text: '', title: '', value: '' }])
-          }
-          type="button"
-        >
-          Добавить вариант
-        </button>
-      }
-      description="Подписи и пояснения для переключателей в калькуляторе."
-      title="Варианты расчёта"
-    >
-      <div className="admin-editor-list">
-        {normalizedItems.length > 0 ? (
-          normalizedItems.map((item, index) => (
-            <ContentEditorItem
-              key={`installation-option-${index}`}
-              onRemove={() => onChange(removeArrayItem(normalizedItems, index))}
-              title={`Вариант ${index + 1}`}
-            >
-              <div className="admin-grid admin-grid--two">
-                <AdminField label="Код значения">
-                  <input
-                    className="admin-input"
-                    onChange={(event) =>
-                      onChange(
-                        replaceArrayItem(normalizedItems, index, {
-                          ...ensureObject(item),
-                          value: event.target.value,
-                        })
-                      )
-                    }
-                    value={item?.value ?? ''}
-                  />
-                </AdminField>
-                <AdminField label="Заголовок">
-                  <input
-                    className="admin-input"
-                    onChange={(event) =>
-                      onChange(
-                        replaceArrayItem(normalizedItems, index, {
-                          ...ensureObject(item),
-                          title: event.target.value,
-                        })
-                      )
-                    }
-                    value={item?.title ?? ''}
-                  />
-                </AdminField>
-              </div>
-              <AdminField label="Пояснение">
-                <textarea
-                  className="admin-textarea admin-textarea--compact"
-                  onChange={(event) =>
-                    onChange(
-                      replaceArrayItem(normalizedItems, index, {
-                        ...ensureObject(item),
-                        text: event.target.value,
-                      })
-                    )
-                  }
-                  value={item?.text ?? ''}
-                />
-              </AdminField>
-            </ContentEditorItem>
-          ))
-        ) : (
-          <div className="admin-editor-empty">Пока нет вариантов.</div>
-        )}
-      </div>
-    </ContentEditorCard>
-  )
-}
-
 function ChannelsEditor({ items, onChange }) {
   const normalizedItems = ensureArray(items)
 
@@ -1009,11 +782,11 @@ function ChannelsEditor({ items, onChange }) {
           }
           type="button"
         >
-          Добавить карточку
+          Добавить канал
         </button>
       }
-      description="Порядок и подписи карточек связи. Для key можно использовать phone, whatsapp, telegram, vk или свой код."
-      title="Карточки контактов"
+      description="Порядок и подписи каналов связи. Для key можно использовать phone, whatsapp, telegram, vk или свой код."
+      title="Каналы связи"
     >
       <div className="admin-editor-list">
         {normalizedItems.length > 0 ? (
@@ -1021,7 +794,7 @@ function ChannelsEditor({ items, onChange }) {
             <ContentEditorItem
               key={`contact-channel-${index}`}
               onRemove={() => onChange(removeArrayItem(normalizedItems, index))}
-              title={`Карточка ${index + 1}`}
+              title={`Канал ${index + 1}`}
             >
               <div className="admin-grid admin-grid--two">
                 <AdminField label="Ключ">
@@ -1033,12 +806,12 @@ function ChannelsEditor({ items, onChange }) {
                           ...ensureObject(item),
                           key: event.target.value,
                         })
-                      )
-                    }
-                    value={item?.key ?? ''}
-                  />
+                    )
+                  }
+                  value={item?.key ?? ''}
+                />
                 </AdminField>
-                <AdminField label="Заголовок карточки">
+                <AdminField label="Заголовок канала">
                   <input
                     className="admin-input"
                     onChange={(event) =>
@@ -1127,7 +900,7 @@ function ChannelsEditor({ items, onChange }) {
             </ContentEditorItem>
           ))
         ) : (
-          <div className="admin-editor-empty">Пока нет контактных карточек.</div>
+          <div className="admin-editor-empty">Пока нет каналов связи.</div>
         )}
       </div>
     </ContentEditorCard>
@@ -1247,47 +1020,27 @@ function HeaderContentEditor({ extraData, onChangeExtraData }) {
 
 function HeroContentEditor({ extraData, onChangeExtraData }) {
   return (
-    <div className="admin-editor-stack">
-      <ContentEditorCard
-        description="Основное изображение первого экрана. Можно задать путь к реальному фасаду или оставить service-fallback до загрузки материалов."
-        title="Изображение первого экрана"
-      >
-        <AdminField label="Путь к изображению">
-          <input
-            className="admin-input"
-            onChange={(event) =>
-              onChangeExtraData((current) => ({
-                ...current,
-                image: event.target.value,
-              }))
-            }
-            value={extraData.image ?? ''}
-          />
-        </AdminField>
-        <ContentImagePreview
-          alt="Предпросмотр hero-изображения"
-          src={extraData.image}
+    <ContentEditorCard
+      description="Основное изображение первого экрана. Текст кнопки и ссылка для hero редактируются в основных полях блока выше."
+      title="Изображение первого экрана"
+    >
+      <AdminField label="Путь к изображению">
+        <input
+          className="admin-input"
+          onChange={(event) =>
+            onChangeExtraData((current) => ({
+              ...current,
+              image: event.target.value,
+            }))
+          }
+          value={extraData.image ?? ''}
         />
-      </ContentEditorCard>
-      <StringListEditor
-        addLabel="Добавить тезис"
-        description="Короткие тезисы под первым экраном."
-        items={extraData.highlights}
-        onChange={(nextItems) =>
-          onChangeExtraData((current) => ({ ...current, highlights: nextItems }))
-        }
-        placeholder="Например: Монтаж можно выполнить самостоятельно"
-        title="Ключевые тезисы"
+      </AdminField>
+      <ContentImagePreview
+        alt="Предпросмотр hero-изображения"
+        src={extraData.image}
       />
-      <ActionsEditor
-        description="Кнопки под главным оффером."
-        items={extraData.actions}
-        onChange={(nextActions) =>
-          onChangeExtraData((current) => ({ ...current, actions: nextActions }))
-        }
-        title="Кнопки первого экрана"
-      />
-    </div>
+    </ContentEditorCard>
   )
 }
 
@@ -1399,7 +1152,16 @@ function GalleryContentEditor({ extraData, onChangeExtraData }) {
   return (
     <div className="admin-editor-stack">
       <ContentEditorCard
-        description="Подсказка над каруселью и ручными переключателями."
+        description='Карточки этого блока на сайте формируются из опубликованных объектов во вкладке "Объекты".'
+        title="Источник карточек"
+      >
+        <div className="admin-editor-empty">
+          Чтобы добавить или изменить пример работы на сайте, редактируйте
+          элементы во вкладке &quot;Объекты&quot;.
+        </div>
+      </ContentEditorCard>
+      <ContentEditorCard
+        description="Короткая необязательная подпись над списком примеров работ."
         title="Текст-подсказка"
       >
         <AdminField label="Подсказка">
@@ -1415,12 +1177,6 @@ function GalleryContentEditor({ extraData, onChangeExtraData }) {
           />
         </AdminField>
       </ContentEditorCard>
-      <GalleryCardsEditor
-        items={extraData.cards}
-        onChange={(nextCards) =>
-          onChangeExtraData((current) => ({ ...current, cards: nextCards }))
-        }
-      />
     </div>
   )
 }
@@ -1438,17 +1194,16 @@ function CatalogContentEditor() {
   )
 }
 
-function CalculatorContentEditor({ extraData, onChangeExtraData }) {
+function CalculatorContentEditor() {
   return (
-    <InstallationOptionsEditor
-      items={extraData.installationOptions}
-      onChange={(nextOptions) =>
-        onChangeExtraData((current) => ({
-          ...current,
-          installationOptions: nextOptions,
-        }))
-      }
-    />
+    <ContentEditorCard
+      description="Для калькулятора сейчас настраивается только заголовок секции. Дополнительных JSON-настроек нет."
+      title="Дополнительные настройки"
+    >
+      <div className="admin-editor-empty">
+        Отдельных JSON-настроек для этого блока больше нет.
+      </div>
+    </ContentEditorCard>
   )
 }
 
@@ -1518,34 +1273,100 @@ function SelfInstallContentEditor({ extraData, onChangeExtraData }) {
 
 function PartnersContentEditor({ extraData, onChangeExtraData }) {
   return (
-    <TextBlocksEditor
-      addLabel="Добавить вариант"
-      description="Карточки с описанием сценариев сотрудничества."
-      items={extraData.options}
-      onChange={(nextOptions) =>
-        onChangeExtraData((current) => ({ ...current, options: nextOptions }))
-      }
-      title="Варианты сотрудничества"
-      titleLabel="Название варианта"
-    />
+    <div className="admin-editor-stack">
+      <ContentEditorCard
+        description="Небольшой бейдж и крупный заголовок внутри левой ведущей панели."
+        title="Ведущий оффер"
+      >
+        <div className="admin-grid admin-grid--two">
+          <AdminField label="Бейдж">
+            <input
+              className="admin-input"
+              onChange={(event) =>
+                onChangeExtraData((current) => ({
+                  ...current,
+                  leadBadge: event.target.value,
+                }))
+              }
+              value={extraData.leadBadge ?? ''}
+            />
+          </AdminField>
+          <AdminField label="Крупный оффер">
+            <input
+              className="admin-input"
+              onChange={(event) =>
+                onChangeExtraData((current) => ({
+                  ...current,
+                  leadTitle: event.target.value,
+                }))
+              }
+              value={extraData.leadTitle ?? ''}
+            />
+          </AdminField>
+        </div>
+      </ContentEditorCard>
+      <TextBlocksEditor
+        addLabel="Добавить вариант"
+        description="Карточки с описанием сценариев сотрудничества."
+        items={extraData.options}
+        onChange={(nextOptions) =>
+          onChangeExtraData((current) => ({ ...current, options: nextOptions }))
+        }
+        title="Варианты сотрудничества"
+        titleLabel="Название варианта"
+      />
+    </div>
   )
 }
 
 function ContactsContentEditor({ extraData, onChangeExtraData }) {
   return (
-    <ChannelsEditor
-      items={extraData.channels}
-      onChange={(nextChannels) =>
-        onChangeExtraData((current) => ({ ...current, channels: nextChannels }))
-      }
-    />
+    <div className="admin-editor-stack">
+      <ContentEditorCard
+        description="Короткий акцент над телефоном и основной текст, который виден внутри контактного блока."
+        title="Вводный текст"
+      >
+        <div className="admin-grid admin-grid--two">
+          <AdminField label="Короткий акцент">
+            <input
+              className="admin-input"
+              onChange={(event) =>
+                onChangeExtraData((current) => ({
+                  ...current,
+                  introEyebrow: event.target.value,
+                }))
+              }
+              value={extraData.introEyebrow ?? ''}
+            />
+          </AdminField>
+        </div>
+        <AdminField label="Основной текст блока">
+          <textarea
+            className="admin-textarea admin-textarea--compact"
+            onChange={(event) =>
+              onChangeExtraData((current) => ({
+                ...current,
+                introText: event.target.value,
+              }))
+            }
+            value={extraData.introText ?? ''}
+          />
+        </AdminField>
+      </ContentEditorCard>
+      <ChannelsEditor
+        items={extraData.channels}
+        onChange={(nextChannels) =>
+          onChangeExtraData((current) => ({ ...current, channels: nextChannels }))
+        }
+      />
+    </div>
   )
 }
 
 function FooterContentEditor({ extraData, onChangeExtraData }) {
   return (
     <ContentEditorCard
-      description="Короткие названия для иконок мессенджеров в подвале сайта."
+      description="Короткие названия для быстрых кнопок мессенджеров в подвале сайта."
       title="Подписи мессенджеров"
     >
       <div className="admin-grid admin-grid--two">
@@ -1571,6 +1392,18 @@ function FooterContentEditor({ extraData, onChangeExtraData }) {
               }))
             }
             value={extraData.telegramLabel ?? ''}
+          />
+        </AdminField>
+        <AdminField label="Max">
+          <input
+            className="admin-input"
+            onChange={(event) =>
+              onChangeExtraData((current) => ({
+                ...current,
+                maxLabel: event.target.value,
+              }))
+            }
+            value={extraData.maxLabel ?? ''}
           />
         </AdminField>
         <AdminField label="VK">
@@ -1825,6 +1658,7 @@ function ProductsPanel({
               <AdminField label="Площадь панели">
                 <input
                   className="admin-input"
+                  min="0.01"
                   name="panelArea"
                   onChange={onChangeProductForm}
                   step="0.01"
@@ -1835,6 +1669,7 @@ function ProductsPanel({
               <AdminField label="Текущая цена">
                 <input
                   className="admin-input"
+                  min="0"
                   name="priceCurrent"
                   onChange={onChangeProductForm}
                   step="0.01"
@@ -1845,6 +1680,7 @@ function ProductsPanel({
               <AdminField label="Старая цена">
                 <input
                   className="admin-input"
+                  min="0"
                   name="priceOld"
                   onChange={onChangeProductForm}
                   step="0.01"
@@ -2146,7 +1982,7 @@ function ContentPanel({
   selectedBlockKey,
 }) {
   const selectedBlock = blocks.find((block) => block.blockKey === selectedBlockKey) ?? null
-  const blockMeta = getContentBlockMeta(selectedBlockKey)
+  const blockMeta = getContentBlockEditorMeta(selectedBlockKey)
   const supportsStructuredEditor = supportsStructuredContentEditor(selectedBlockKey)
   const extraData = ensureObject(blockDraft.extraData)
 
@@ -2171,7 +2007,7 @@ function ContentPanel({
                 onClick={() => onSelectBlock(block)}
                 type="button"
               >
-                <span>{getContentBlockMeta(block.blockKey).label}</span>
+                <span>{getContentBlockEditorMeta(block.blockKey).label}</span>
                 <small>
                   {block.title || block.blockKey}
                   {getBlockMaterialGapCount(block) > 0 ? ' • нужны материалы' : ''}
@@ -2345,6 +2181,9 @@ function ContactsPanel({
             <AdminField label="Telegram">
               <input className="admin-input" name="telegramUrl" onChange={onChangeContactsForm} value={contactsForm.telegramUrl} />
             </AdminField>
+            <AdminField label="Max">
+              <input className="admin-input" name="maxUrl" onChange={onChangeContactsForm} value={contactsForm.maxUrl} />
+            </AdminField>
             <AdminField label="VK">
               <input className="admin-input" name="vkUrl" onChange={onChangeContactsForm} value={contactsForm.vkUrl} />
             </AdminField>
@@ -2416,6 +2255,7 @@ export default function AdminApp() {
   }
 
   const handleLogout = (message) => {
+    adminDashboardRequests.delete(token)
     localStorage.removeItem(ADMIN_TOKEN_KEY)
     setToken('')
     setDashboard(createEmptyDashboard())
@@ -2449,14 +2289,20 @@ export default function AdminApp() {
       setDashboardError('')
 
       try {
-        const nextDashboard = await fetchAdminDashboard(token)
+        const nextDashboard = await requestAdminDashboard(token)
 
         if (!isCurrent) {
           return
         }
 
-        setDashboard(nextDashboard)
+        setDashboard({
+          contacts: nextDashboard.contacts,
+          products: nextDashboard.products,
+          showcaseObjects: nextDashboard.showcaseObjects,
+          siteContentBlocks: nextDashboard.siteContentBlocks,
+        })
         setContactsForm(mapContactsToForm(nextDashboard.contacts))
+        setDashboardError(formatDashboardErrors(nextDashboard.errors))
       } catch (error) {
         if (!isCurrent) {
           return
@@ -2611,6 +2457,13 @@ export default function AdminApp() {
 
   const handleSaveProduct = async (event) => {
     event.preventDefault()
+    const validationError = validateProductForm(productForm)
+
+    if (validationError) {
+      showFlash(validationError, 'warning')
+      return
+    }
+
     setIsSaving(true)
 
     try {
@@ -2957,6 +2810,19 @@ export default function AdminApp() {
       const extraData = blockDraft.isAdvancedMode
         ? parseContentExtraDataText(blockDraft.extraDataText)
         : ensureObject(blockDraft.extraData)
+      const extraDataValidationError = validateContentBlockExtraData(
+        blockDraft.blockKey,
+        extraData
+      )
+
+      if (extraDataValidationError) {
+        setBlockDraft((current) => ({
+          ...current,
+          extraDataError: extraDataValidationError,
+        }))
+        showFlash(extraDataValidationError, 'warning')
+        return
+      }
 
       const payload = {
         title: blockDraft.title,

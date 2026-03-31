@@ -176,18 +176,73 @@ export function updateAdminContacts(token, contacts) {
 }
 
 export async function fetchAdminDashboard(token) {
-  const [productsPayload, showcasePayload, siteContentPayload, contacts] =
-    await Promise.all([
-      fetchAdminProducts(token),
-      fetchAdminShowcaseObjects(token),
-      fetchAdminSiteContent(token),
-      fetchAdminContacts(token),
-    ])
+  const dashboardRequests = [
+    {
+      fallback: [],
+      key: 'products',
+      label: 'товары',
+      load: () => fetchAdminProducts(token),
+      mapResult: (payload) => payload.items,
+    },
+    {
+      fallback: [],
+      key: 'showcaseObjects',
+      label: 'объекты',
+      load: () => fetchAdminShowcaseObjects(token),
+      mapResult: (payload) => payload.items,
+    },
+    {
+      fallback: [],
+      key: 'siteContentBlocks',
+      label: 'контент',
+      load: () => fetchAdminSiteContent(token),
+      mapResult: (payload) => payload.items,
+    },
+    {
+      fallback: null,
+      key: 'contacts',
+      label: 'контакты',
+      load: () => fetchAdminContacts(token),
+      mapResult: (payload) => payload,
+    },
+  ]
 
-  return {
-    contacts,
-    products: productsPayload.items,
-    showcaseObjects: showcasePayload.items,
-    siteContentBlocks: siteContentPayload.items,
+  const results = await Promise.allSettled(
+    dashboardRequests.map((request) => request.load())
+  )
+  const authFailure = results.find(
+    (result) => result.status === 'rejected' && result.reason?.status === 401
+  )
+
+  if (authFailure?.status === 'rejected') {
+    throw authFailure.reason
   }
+
+  return dashboardRequests.reduce(
+    (dashboard, request, index) => {
+      const result = results[index]
+
+      if (result.status === 'fulfilled') {
+        dashboard[request.key] = request.mapResult(result.value)
+      } else {
+        dashboard[request.key] = request.fallback
+        dashboard.errors.push({
+          key: request.key,
+          label: request.label,
+          message:
+            result.reason?.message ??
+            `Не удалось загрузить раздел "${request.label}".`,
+        })
+      }
+
+      return dashboard
+    },
+    {
+      contacts: null,
+      errors: [],
+      products: [],
+      showcaseObjects: [],
+      siteContentBlocks: [],
+    }
+  )
 }

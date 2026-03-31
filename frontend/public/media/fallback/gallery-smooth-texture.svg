@@ -10,8 +10,4 @@
     <rect x="164" y="396" width="180" height="102" rx="14"/>
     <rect x="362" y="396" width="180" height="102" rx="14"/>
     <rect x="560" y="396" width="180" height="102" rx="14"/>
-  </g>
-  <text x="132" y="84" fill="#6E3927" font-family="Arial, sans-serif" font-size="28" font-weight="700">Texture fallback</text>
-  <text x="132" y="650" fill="#4B372D" font-family="Arial, sans-serif" font-size="46" font-weight="700">Smooth texture</text>
-  <text x="132" y="688" fill="#7A6358" font-family="Arial, sans-serif" font-size="22">Texture study.</text>
-</svg>
+  </g></svg>

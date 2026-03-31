@@ -1,32 +1,54 @@
 const productImages = {
-  closeup: '/media/fallback/product-panel-closeup.svg',
-  facade: '/media/fallback/product-house-example.svg',
-  far: '/media/fallback/product-panel-far.svg',
-  side: '/media/fallback/product-panel-side.svg',
+  'clinker-graphite-ice': {
+    closeup: '/media/products/product-3/product-3-2.webp',
+    facade: '/media/products/product-3/product-3-4.webp',
+    far: '/media/products/product-3/product-3-1.webp',
+    side: '/media/products/product-3/product-3-3.webp',
+  },
+  'granit-light-sand': {
+    closeup: '/media/products/product-1/product-1-2.webp',
+    facade: '/media/products/product-1/product-1-4.webp',
+    far: '/media/products/product-1/product-1-1.webp',
+    side: '/media/products/product-1/product-1-3.webp',
+  },
+  'smooth-milk-graphite': {
+    closeup: '/media/products/product-2/product-2-2.webp',
+    facade: '/media/products/product-2/product-2-4.webp',
+    far: '/media/products/product-2/product-2-1.webp',
+    side: '/media/products/product-2/product-2-3.webp',
+  },
+  'smooth-warm-stone': {
+    closeup: '/media/products/product-4/product-4-2.webp',
+    facade: '/media/products/product-4/product-4-4.webp',
+    far: '/media/products/product-4/product-4-1.webp',
+    side: '/media/products/product-4/product-4-3.webp',
+  },
 }
 
-function createGallery(name, textureLabel) {
+function createGallery(slug, name, textureLabel) {
+  const galleryImages = productImages[slug]
+
   return [
     {
-      image: productImages.far,
+      image: galleryImages.far,
       alt: `${name}: общий вид панели`,
       kind: 'Панель издалека',
       note: `${textureLabel}, основной вид панели`,
     },
     {
-      image: productImages.closeup,
+      image: galleryImages.closeup,
       alt: `${name}: крупный план фактуры`,
       kind: 'Крупный план',
       note: `Фактура ${textureLabel.toLowerCase()} и рисунок шва`,
     },
     {
-      image: productImages.side,
+      image: galleryImages.side,
       alt: `${name}: вид сбоку`,
       kind: 'Вид сбоку',
       note: 'Толщина панели и визуальный рельеф сбоку',
     },
     {
-      image: productImages.facade,
+      image: galleryImages.facade,
       alt: `${name}: пример фасада дома`,
       kind: 'Фасад дома',
       note: 'Пример фасада с этой фактурой и сочетанием цвета',
@@ -53,6 +75,7 @@ export const products = [
       'Подходит для фасадов, где нужен тёплый и аккуратный внешний вид без резкого контраста. Зернистая поверхность помогает сделать рисунок фасада более мягким, а светлый шов подчёркивает кладку без визуальной перегрузки.',
     isHidden: false,
     gallery: createGallery(
+      'granit-light-sand',
       'Термопанель Granit Light Sand',
       'Зернистая'
     ),
@@ -75,6 +98,7 @@ export const products = [
       'Подходит для домов, где хочется получить аккуратный рисунок кирпича и более современный характер фасада. Контрастный шов делает раскладку выразительнее, а светлый кирпич сохраняет ощущение лёгкости.',
     isHidden: false,
     gallery: createGallery(
+      'smooth-milk-graphite',
       'Термопанель Smooth Milk Graphite',
       'Гладкая'
     ),
@@ -97,6 +121,7 @@ export const products = [
       'Клинкерная фактура даёт более активный рельеф и подчёркнутый рисунок кладки. Такой вариант выбирают, когда фасаду нужен выраженный контраст и собранный визуальный ритм.',
     isHidden: false,
     gallery: createGallery(
+      'clinker-graphite-ice',
       'Термопанель Clinker Graphite Ice',
       'Клинкерная'
     ),
@@ -119,6 +144,7 @@ export const products = [
       'Хорошо смотрится на частных домах с классическими и комбинированными фасадами. Тёплый оттенок панели помогает сделать внешний вид дома спокойным и собранным, а гладкая фактура оставляет рисунок аккуратным.',
     isHidden: false,
     gallery: createGallery(
+      'smooth-warm-stone',
       'Термопанель Smooth Warm Stone',
       'Гладкая'
     ),

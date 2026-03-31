@@ -1,24 +1,32 @@
+import { sectionTextDefaults } from '../content/siteTextDefaults.js'
+
+const footerMessengerOrder = ['whatsapp', 'telegram', 'max']
+
 export function Footer({
   contacts,
-  copy = 'Thermal Panels • фасадные термопанели для утепления и облицовки дома',
-  telegramLabel = 'Telegram',
-  vkLabel = 'VK',
-  whatsappLabel = 'WhatsApp',
+  copy = sectionTextDefaults.footer.copy,
+  maxLabel = sectionTextDefaults.footer.maxLabel,
+  telegramLabel = sectionTextDefaults.footer.telegramLabel,
+  vkLabel = sectionTextDefaults.footer.vkLabel,
+  whatsappLabel = sectionTextDefaults.footer.whatsappLabel,
 }) {
+  const messengerLabels = {
+    max: maxLabel,
+    telegram: telegramLabel,
+    whatsapp: whatsappLabel,
+  }
+  const messengerLinks = {
+    max: contacts.maxHref,
+    telegram: contacts.telegramHref,
+    whatsapp: contacts.whatsappHref,
+  }
+  const messengerItems = footerMessengerOrder.map((key) => ({
+    href: messengerLinks[key],
+    key,
+    label: messengerLabels[key],
+  }))
   const footerLinks = [
     { href: contacts.phoneHref, key: 'phone', label: contacts.phoneLabel },
-    {
-      external: true,
-      href: contacts.whatsappHref,
-      key: 'whatsapp',
-      label: whatsappLabel,
-    },
-    {
-      external: true,
-      href: contacts.telegramHref,
-      key: 'telegram',
-      label: telegramLabel,
-    },
     { external: true, href: contacts.vkHref, key: 'vk', label: vkLabel },
   ].filter((item) => item.href)
 
@@ -27,8 +35,32 @@ export function Footer({
       <div className="layout-container footer__inner">
         <p className="footer__copy">{copy}</p>
         <div className="footer__links">
+          <div className="footer__messengers" aria-label="Быстрый переход в мессенджеры">
+            {messengerItems.map((item) =>
+              item.href ? (
+                <a
+                  className="footer__link"
+                  href={item.href}
+                  key={item.key}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <span
+                  aria-disabled="true"
+                  className="footer__link footer__link--disabled"
+                  key={item.key}
+                >
+                  {item.label}
+                </span>
+              )
+            )}
+          </div>
           {footerLinks.map((item) => (
             <a
+              className="footer__link"
               href={item.href}
               key={item.key}
               rel={item.external ? 'noreferrer' : undefined}

@@ -1,13 +1,11 @@
 import { getPublicProductBySlug } from './catalogService.js'
 
-const allowedInstallationModes = new Set(['self', 'assisted'])
-
 function roundMoney(value) {
   return Number(value.toFixed(2))
 }
 
 export async function createEstimate(input, options = {}) {
-  const { productSlug, facadeArea, installationMode } = input
+  const { productSlug, facadeArea } = input
   const reserveRate = options.reserveRate ?? 0.07
   const parsedArea = Number(facadeArea)
 
@@ -25,15 +23,6 @@ export async function createEstimate(input, options = {}) {
       error: {
         code: 'INVALID_AREA',
         message: 'Площадь фасада должна быть числом больше нуля.',
-      },
-    }
-  }
-
-  if (!allowedInstallationModes.has(installationMode)) {
-    return {
-      error: {
-        code: 'INVALID_INSTALLATION_MODE',
-        message: 'Неверно указан сценарий монтажа.',
       },
     }
   }
@@ -67,13 +56,9 @@ export async function createEstimate(input, options = {}) {
         panelCount,
         materialCost,
         totalCost: materialCost,
-        installationMode,
-        installationCostIncluded: false,
         isPreliminary: true,
         note:
-          installationMode === 'self'
-            ? 'Предварительный расчёт показывает ориентир по материалу. Точное количество зависит от конфигурации фасада, подрезок и узлов.'
-            : 'Предварительный расчёт показывает ориентир по материалу. Стоимость монтажа уточняется отдельно после консультации, фото фасада и состава работ.',
+          'Предварительный расчёт показывает ориентир по материалу. Точное количество зависит от конфигурации фасада, подрезок и узлов.',
       },
     },
   }

@@ -10,6 +10,7 @@ export async function getPublicSiteContent() {
   const contacts = bundle.contacts
     ? {
         ...bundle.contacts,
+        maxUrl: sanitizePublicExternalUrl(bundle.contacts.maxUrl),
         telegramUrl: sanitizePublicExternalUrl(bundle.contacts.telegramUrl),
         vkUrl: sanitizePublicExternalUrl(bundle.contacts.vkUrl),
         whatsappUrl: sanitizePublicExternalUrl(bundle.contacts.whatsappUrl),

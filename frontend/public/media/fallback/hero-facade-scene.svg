@@ -13,8 +13,4 @@
   <path d="M420 760V500L616 382L812 500V760H420Z" fill="#F2E5D7"/>
   <path d="M486 760V544H742V760H486Z" fill="#E8D4C0"/>
   <rect x="534" y="410" width="154" height="98" rx="14" fill="#FAF4EC"/>
-  <rect x="938" y="566" width="168" height="146" rx="18" fill="#EFE0D0"/>
-  <text x="120" y="118" fill="#6E3927" font-family="Arial, sans-serif" font-size="34" font-weight="700">THERMAL PANELS</text>
-  <text x="120" y="170" fill="#4B372D" font-family="Arial, sans-serif" font-size="62" font-weight="700">Facade render fallback</text>
-  <text x="120" y="226" fill="#7A6358" font-family="Arial, sans-serif" font-size="28">Facade concept scene.</text>
-</svg>
+  <rect x="938" y="566" width="168" height="146" rx="18" fill="#EFE0D0"/></svg>

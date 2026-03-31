@@ -1,59 +1,185 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { sectionTextDefaults } from '../content/siteTextDefaults.js'
 import { trackGoal } from '../lib/analytics.js'
-import { fetchEstimate } from '../lib/publicApi.js'
+import {
+  createCalculatorEstimate,
+  formatCalculatorInteger,
+  formatCalculatorPrice,
+  formatCalculatorSquareMeters,
+  getCalculatorAreaValidationMessage,
+} from '../lib/calculator.js'
 import { Section } from './Section.jsx'
 
-const RESERVE_RATE = 0.07
-
-const priceFormatter = new Intl.NumberFormat('ru-RU', {
-  style: 'currency',
-  currency: 'RUB',
-  maximumFractionDigits: 0,
-})
-
-const decimalFormatter = new Intl.NumberFormat('ru-RU', {
-  maximumFractionDigits: 1,
-})
-
-const integerFormatter = new Intl.NumberFormat('ru-RU')
-
-const defaultInstallationOptions = [
-  {
-    value: 'self',
-    title: 'Самостоятельный монтаж',
-    text: 'Показываем ориентир по материалу и количеству панелей.',
-  },
-  {
-    value: 'assisted',
-    title: 'Нужен расчёт с монтажом',
-    text: 'Фиксируем интерес к монтажу и подсказываем, что работы уточняются отдельно.',
-  },
-]
-
-function formatPrice(value) {
-  return priceFormatter.format(value)
+function getProductOptionLabel(product) {
+  return `${product.name} · ${product.texture} · ${formatCalculatorPrice(
+    product.priceCurrent
+  )} за м²`
 }
 
-function formatSquareMeters(value) {
-  return `${decimalFormatter.format(value)} м²`
+function CalculatorProductSelect({
+  disabled = false,
+  label,
+  onChange,
+  options,
+  value,
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const rootRef = useRef(null)
+  const optionRefs = useRef([])
+  const labelId = useId()
+  const listboxId = useId()
+  const triggerId = useId()
+  const isMenuOpen = isOpen && !disabled
+  const selectedOption = options.find((option) => option.value === value) ?? null
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return undefined
+    }
+
+    const handlePointerDown = (event) => {
+      if (!rootRef.current?.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+
+    window.addEventListener('mousedown', handlePointerDown)
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isMenuOpen])
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return undefined
+    }
+
+    const selectedIndex = Math.max(
+      0,
+      options.findIndex((option) => option.value === value)
+    )
+    const frameId = window.requestAnimationFrame(() => {
+      optionRefs.current[selectedIndex]?.focus()
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+    }
+  }, [isMenuOpen, options, value])
+
+  const handleSelect = (nextValue) => {
+    onChange(nextValue)
+    setIsOpen(false)
+  }
+
+  const handleOptionKeyDown = (event, optionIndex) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      optionRefs.current[(optionIndex + 1) % options.length]?.focus()
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      optionRefs.current[
+        (optionIndex - 1 + options.length) % options.length
+      ]?.focus()
+    }
+  }
+
+  return (
+    <div className="calculator-field">
+      <label className="calculator-label" id={labelId}>
+        {label}
+      </label>
+      <div
+        className={`calculator-selectbox${
+          isMenuOpen ? ' calculator-selectbox--open' : ''
+        }`}
+        ref={rootRef}
+      >
+        <button
+          aria-controls={listboxId}
+          aria-expanded={isMenuOpen}
+          aria-haspopup="listbox"
+          aria-labelledby={`${labelId} ${triggerId}`}
+          className="calculator-select calculator-selectbox__trigger"
+          disabled={disabled}
+          id={triggerId}
+          onClick={() => setIsOpen((open) => !open)}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault()
+              setIsOpen(true)
+            }
+
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              setIsOpen((open) => !open)
+            }
+          }}
+          type="button"
+        >
+          <span className="calculator-selectbox__value">
+            {selectedOption?.label ?? 'Каталог загружается'}
+          </span>
+          <span aria-hidden="true" className="calculator-selectbox__chevron" />
+        </button>
+
+        {isMenuOpen ? (
+          <div
+            aria-labelledby={labelId}
+            className="calculator-selectbox__menu"
+            id={listboxId}
+            role="listbox"
+          >
+            {options.map((option, optionIndex) => {
+              const isSelected = option.value === value
+
+              return (
+                <button
+                  aria-selected={isSelected}
+                  className={`calculator-selectbox__option${
+                    isSelected ? ' calculator-selectbox__option--selected' : ''
+                  }`}
+                  key={option.value}
+                  onClick={() => handleSelect(option.value)}
+                  onKeyDown={(event) => handleOptionKeyDown(event, optionIndex)}
+                  ref={(node) => {
+                    optionRefs.current[optionIndex] = node
+                  }}
+                  role="option"
+                  tabIndex={isSelected ? 0 : -1}
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
 }
 
 export function CalculatorSection({
-  contacts,
-  description = '',
   error = '',
-  eyebrow = '',
   isLoading = false,
-  installationOptions = defaultInstallationOptions,
   products,
-  title = 'Рассчитайте стоимость отделки своего дома',
+  title = sectionTextDefaults.calculator.title,
 }) {
   const [selectedProductSlug, setSelectedProductSlug] = useState('')
-  const [facadeArea, setFacadeArea] = useState('120')
-  const [installationMode, setInstallationMode] = useState('self')
-  const [estimate, setEstimate] = useState(null)
-  const [estimateError, setEstimateError] = useState('')
-  const [isEstimateLoading, setIsEstimateLoading] = useState(false)
+  const [facadeArea, setFacadeArea] = useState('')
+  const [hasInteracted, setHasInteracted] = useState(false)
   const hasTrackedCalculatorStart = useRef(false)
   const lastTrackedEstimateSignature = useRef('')
 
@@ -67,16 +193,6 @@ export function CalculatorSection({
   }
 
   useEffect(() => {
-    const hasSelectedProduct = products.some(
-      (product) => product.slug === selectedProductSlug
-    )
-
-    if (!hasSelectedProduct) {
-      setSelectedProductSlug(products[0]?.slug ?? '')
-    }
-  }, [products, selectedProductSlug])
-
-  useEffect(() => {
     const handleSelectProduct = (event) => {
       const nextSlug = event.detail?.slug
 
@@ -84,6 +200,8 @@ export function CalculatorSection({
         return
       }
 
+      setHasInteracted(true)
+      trackCalculatorStart()
       setSelectedProductSlug(nextSlug)
     }
 
@@ -94,26 +212,29 @@ export function CalculatorSection({
     }
   }, [])
 
-  const selectedProduct = useMemo(
-    () => products.find((product) => product.slug === selectedProductSlug) ?? null,
-    [products, selectedProductSlug]
+  const resolvedProductSlug = products.some(
+    (product) => product.slug === selectedProductSlug
   )
-
-  const numericArea = Number(facadeArea)
-  const isAreaValid = Number.isFinite(numericArea) && numericArea > 0
-  const reservePercentage = Math.round(RESERVE_RATE * 100)
+    ? selectedProductSlug
+    : products[0]?.slug ?? ''
+  const selectedProduct =
+    products.find((product) => product.slug === resolvedProductSlug) ?? null
+  const areaValidationMessage = getCalculatorAreaValidationMessage(
+    facadeArea,
+    hasInteracted
+  )
+  const estimate = createCalculatorEstimate(selectedProduct, facadeArea)
 
   useEffect(() => {
-    if (!estimate) {
+    if (!hasInteracted || !estimate) {
       return
     }
 
     const signature = [
-      estimate.product.slug,
-      estimate.calculation.facadeArea,
-      estimate.calculation.installationMode,
-      estimate.calculation.panelCount,
-      estimate.calculation.totalCost,
+      estimate.productSlug,
+      estimate.facadeArea,
+      estimate.panelCount,
+      estimate.totalCost,
     ].join(':')
 
     if (lastTrackedEstimateSignature.current === signature) {
@@ -122,93 +243,51 @@ export function CalculatorSection({
 
     lastTrackedEstimateSignature.current = signature
     trackGoal('calculator_complete', {
-      installationMode: estimate.calculation.installationMode,
-      panelCount: estimate.calculation.panelCount,
-      totalCost: estimate.calculation.totalCost,
+      panelCount: estimate.panelCount,
+      totalCost: estimate.totalCost,
     })
-  }, [estimate])
-
-  useEffect(() => {
-    if (!selectedProduct || !isAreaValid) {
-      setEstimate(null)
-      setEstimateError('')
-      setIsEstimateLoading(false)
-      return undefined
-    }
-
-    const controller = new AbortController()
-    const timeoutId = window.setTimeout(async () => {
-      setIsEstimateLoading(true)
-      setEstimate(null)
-      setEstimateError('')
-
-      try {
-        const nextEstimate = await fetchEstimate(
-          {
-            facadeArea: numericArea,
-            installationMode,
-            productSlug: selectedProduct.slug,
-          },
-          controller.signal
-        )
-
-        setEstimate(nextEstimate)
-      } catch (requestError) {
-        if (requestError.name !== 'AbortError') {
-          setEstimate(null)
-          setEstimateError(requestError.message)
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsEstimateLoading(false)
-        }
-      }
-    }, 220)
-
-    return () => {
-      controller.abort()
-      window.clearTimeout(timeoutId)
-    }
-  }, [installationMode, isAreaValid, numericArea, selectedProduct])
+  }, [estimate, hasInteracted])
+  const totalCostValue = estimate
+    ? `~${formatCalculatorPrice(estimate.totalCost)}`
+    : '—'
+  const facadeAreaValue = estimate
+    ? formatCalculatorSquareMeters(estimate.facadeArea)
+    : '—'
+  const panelCountValue = estimate
+    ? `~${formatCalculatorInteger(estimate.panelCount)} шт.`
+    : '—'
+  const pricePerSquareMeterValue = selectedProduct
+    ? `${formatCalculatorPrice(selectedProduct.priceCurrent)}/м²`
+    : '—'
+  const productOptions = products.map((product) => ({
+    label: getProductOptionLabel(product),
+    value: product.slug,
+  }))
+  const statusMessage = isLoading
+    ? 'Каталог загружается.'
+    : error
+      ? error
+      : areaValidationMessage
 
   return (
-    <Section
-      description={description}
-      eyebrow={eyebrow}
-      id="calculator"
-      title={title}
-    >
+    <Section id="calculator" title={title}>
       <div className="calculator-shell">
-        <div className="calculator-form-card">
-          <div className="calculator-field">
-            <label className="calculator-label" htmlFor="calculator-product">
-              Выберите товар
-            </label>
-            <select
-              className="calculator-select"
-              disabled={isLoading || products.length === 0}
-              id="calculator-product"
-              onChange={(event) => {
-                trackCalculatorStart()
-                setSelectedProductSlug(event.target.value)
-              }}
-              value={selectedProductSlug}
-            >
-              {products.length === 0 ? (
-                <option value="">Каталог загружается</option>
-              ) : (
-                products.map((product) => (
-                  <option key={product.slug} value={product.slug}>
-                    {product.name} · {product.texture} · {formatPrice(product.priceCurrent)} за м²
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
+        <div className="calculator-form-card calculator-form-card--single">
+          <CalculatorProductSelect
+            disabled={isLoading || productOptions.length === 0}
+            label="Выберите панель"
+            onChange={(nextSlug) => {
+              setHasInteracted(true)
+              trackCalculatorStart()
+              setSelectedProductSlug(nextSlug)
+            }}
+            options={productOptions}
+            value={resolvedProductSlug}
+          />
 
           <div className="calculator-field">
             <label className="calculator-label" htmlFor="calculator-area">
-              Площадь фасада, м²
+              Площадь фасада
             </label>
             <input
               className="calculator-input"
@@ -216,6 +295,7 @@ export function CalculatorSection({
               inputMode="decimal"
               min="1"
               onChange={(event) => {
+                setHasInteracted(true)
                 trackCalculatorStart()
                 setFacadeArea(event.target.value)
               }}
@@ -224,142 +304,42 @@ export function CalculatorSection({
               type="number"
               value={facadeArea}
             />
-            <p className="calculator-hint">
-              В расчёт автоматически заложен запас {integerFormatter.format(reservePercentage)}%.
-            </p>
           </div>
 
-          <fieldset className="calculator-fieldset">
-            <legend className="calculator-label">Сценарий монтажа</legend>
-            <div className="calculator-mode-grid">
-              {installationOptions.map((option) => (
-                <label
-                  className={`calculator-mode${installationMode === option.value ? ' calculator-mode--active' : ''}`}
-                  key={option.value}
-                >
-                  <input
-                    checked={installationMode === option.value}
-                    className="calculator-mode__control"
-                    name="installationMode"
-                    onChange={() => {
-                      trackCalculatorStart()
-                      setInstallationMode(option.value)
-                    }}
-                    type="radio"
-                    value={option.value}
-                  />
-                  <span className="calculator-mode__title">{option.title}</span>
-                  <span className="calculator-mode__text">{option.text}</span>
-                </label>
-              ))}
+          {statusMessage ? (
+            <p className="calculator-inline-message calculator-inline-message--warning">
+              {statusMessage}
+            </p>
+          ) : null}
+
+          <div aria-live="polite" className="calculator-result-stack">
+            <div className="calculator-total calculator-total--single">
+              <span className="calculator-total__label">Итого</span>
+              <strong className="calculator-total__value">{totalCostValue}</strong>
             </div>
-          </fieldset>
+
+            <dl className="calculator-result__grid calculator-result__grid--simple">
+              <div className="calculator-metric">
+                <dt>Площадь</dt>
+                <dd>{facadeAreaValue}</dd>
+              </div>
+              <div className="calculator-metric">
+                <dt>Панелей</dt>
+                <dd>{panelCountValue}</dd>
+              </div>
+              <div className="calculator-metric">
+                <dt>Цена</dt>
+                <dd>{pricePerSquareMeterValue}</dd>
+              </div>
+            </dl>
+          </div>
+
+          {estimate ? (
+            <a className="button-link" href="#contacts">
+              Уточнить расчёт
+            </a>
+          ) : null}
         </div>
-
-        <aside aria-live="polite" className="calculator-result-card">
-          <p className="calculator-result__eyebrow">Предварительный расчёт</p>
-
-          {isLoading ? (
-            <>
-              <h3 className="calculator-result__title">Подключаем данные сервера</h3>
-              <p className="calculator-result__note">
-                Каталог загружается из backend API, после этого расчёт станет доступен.
-              </p>
-            </>
-          ) : error ? (
-            <>
-              <h3 className="calculator-result__title">Калькулятор временно недоступен</h3>
-              <p className="calculator-result__note">{error}</p>
-            </>
-          ) : estimate && selectedProduct ? (
-            <>
-              <h3 className="calculator-result__title">{estimate.product.name}</h3>
-
-              <div className="calculator-result__chips">
-                <span className="calculator-result__chip">{estimate.product.texture}</span>
-                <span className="calculator-result__chip">
-                  {estimate.calculation.installationMode === 'self'
-                    ? 'Самостоятельный монтаж'
-                    : 'Нужен расчёт с монтажом'}
-                </span>
-              </div>
-
-              <dl className="calculator-result__grid">
-                <div className="calculator-metric">
-                  <dt>Площадь фасада</dt>
-                  <dd>{formatSquareMeters(estimate.calculation.facadeArea)}</dd>
-                </div>
-                <div className="calculator-metric">
-                  <dt>Запас</dt>
-                  <dd>{formatSquareMeters(estimate.calculation.reserveArea)}</dd>
-                </div>
-                <div className="calculator-metric">
-                  <dt>Площадь с запасом</dt>
-                  <dd>{formatSquareMeters(estimate.calculation.areaWithReserve)}</dd>
-                </div>
-                <div className="calculator-metric">
-                  <dt>Ориентировочно панелей</dt>
-                  <dd>{integerFormatter.format(estimate.calculation.panelCount)} шт.</dd>
-                </div>
-                <div className="calculator-metric">
-                  <dt>Покрываемая площадь</dt>
-                  <dd>{formatSquareMeters(estimate.calculation.coveredArea)}</dd>
-                </div>
-                <div className="calculator-metric">
-                  <dt>Стоимость материала</dt>
-                  <dd>{formatPrice(estimate.calculation.materialCost)}</dd>
-                </div>
-              </dl>
-
-              <div className="calculator-total">
-                <span className="calculator-total__label">
-                  {estimate.calculation.installationMode === 'self'
-                    ? 'Итоговая сумма'
-                    : 'Итог по материалу'}
-                </span>
-                <strong className="calculator-total__value">
-                  {formatPrice(estimate.calculation.totalCost)}
-                </strong>
-              </div>
-
-              <p className="calculator-result__note">{estimate.calculation.note}</p>
-
-              <div className="calculator-result__actions">
-                <a className="button-link" href={contacts.phoneHref}>
-                  Позвонить: {contacts.phoneLabel}
-                </a>
-                <a
-                  className="calculator-action calculator-action--ghost"
-                  href={contacts.whatsappHref}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Написать в WhatsApp
-                </a>
-              </div>
-            </>
-          ) : isEstimateLoading ? (
-            <>
-              <h3 className="calculator-result__title">Пересчитываем ориентир</h3>
-              <p className="calculator-result__note">
-                Отправляем данные на сервер и готовим предварительный расчёт.
-              </p>
-            </>
-          ) : estimateError ? (
-            <>
-              <h3 className="calculator-result__title">Не удалось выполнить расчёт</h3>
-              <p className="calculator-result__note">{estimateError}</p>
-            </>
-          ) : (
-            <>
-              <h3 className="calculator-result__title">Введите площадь фасада</h3>
-              <p className="calculator-result__note">
-                После выбора товара и площади калькулятор покажет количество панелей,
-                стоимость материала и ориентир для дальнейшего уточнения.
-              </p>
-            </>
-          )}
-        </aside>
       </div>
     </Section>
   )

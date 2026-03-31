@@ -1,4 +1,10 @@
-export const placeholderImage = '/media/fallback/hero-facade-scene.svg'
+import {
+  defaultContactChannelConfigs,
+  sectionTextDefaults,
+} from './siteTextDefaults.js'
+import { defaultShowcaseObjects } from '../../../shared/defaultShowcaseObjects.js'
+
+export const placeholderImage = '/media/content/hero-block.webp'
 
 export const menuItems = [
   { label: 'Преимущества', href: '#benefits' },
@@ -11,6 +17,7 @@ export const menuItems = [
 ]
 
 export const headerContacts = {
+  maxHref: '',
   phoneLabel: '+7 (909) 755-50-95',
   phoneHref: 'tel:+79097555095',
   whatsappHref: 'https://wa.me/79097555095',
@@ -19,18 +26,6 @@ export const headerContacts = {
 }
 
 export const menuActions = [
-  { label: 'Рассчитать стоимость', href: '#calculator', variant: 'primary' },
-  { label: 'Получить каталог', href: '#catalog', variant: 'secondary' },
-  {
-    label: 'Написать в WhatsApp',
-    href: 'https://wa.me/79097555095',
-    variant: 'secondary',
-    external: true,
-  },
-  { label: 'Получить консультацию', href: '#contacts', variant: 'secondary' },
-]
-
-export const heroActions = [
   { label: 'Рассчитать стоимость', href: '#calculator', variant: 'primary' },
   { label: 'Получить каталог', href: '#catalog', variant: 'secondary' },
   { label: 'Получить консультацию', href: '#contacts', variant: 'secondary' },
@@ -71,47 +66,13 @@ export const comparisonColumns = [
   },
 ]
 
-export const showcaseCards = [
-  {
-    image: '/media/fallback/gallery-granular-texture.svg',
-    meta: 'Фактура панели',
-    title: 'Зернистая фактура',
-  },
-  {
-    image: '/media/fallback/gallery-smooth-texture.svg',
-    meta: 'Фактура панели',
-    title: 'Гладкая фактура',
-  },
-  {
-    image: '/media/fallback/gallery-clinker-texture.svg',
-    meta: 'Фактура панели',
-    title: 'Клинкерная фактура',
-  },
-  {
-    image: '/media/fallback/gallery-color-palette.svg',
-    meta: 'Цветовые решения',
-    title: 'Комбинации цвета панели и шва',
-  },
-  {
-    image: '/media/fallback/gallery-light-facade.svg',
-    meta: 'Подбор цвета',
-    title: 'Светлые фасадные решения',
-  },
-  {
-    image: '/media/fallback/gallery-contrast-facade.svg',
-    meta: 'Подбор цвета',
-    title: 'Контрастные сочетания',
-  },
-]
-
 export const materialFeature = {
-  image: '/media/fallback/product-feature-board.svg',
+  image: '/media/content/What-is-important-to-know-about-thermalpanels-block.webp',
   title: 'Термопанели для тёплого и аккуратного фасада',
   text: 'Термопанели — это решение, которое сразу закрывает два ключевых вопроса фасада: утепление и внешний вид дома. Вместо нескольких этапов работ вы получаете понятный и предсказуемый результат — тёплый и аккуратный фасад.',
 }
 
-export const partnerDescription =
-  'Работаем с партнёрами, которым важно стабильное качество, понятные условия и предсказуемый результат на объектах.'
+export const partnerDescription = sectionTextDefaults.partners.description
 
 export const partnerOptions = [
   {
@@ -144,7 +105,7 @@ export const productDescriptionBlocks = [
 ]
 
 export const selfInstallContent = {
-  body: 'Монтаж термопанелей — это понятный и последовательный процесс, который можно выполнить самостоятельно после консультации и расчёта.',
+  body: sectionTextDefaults.selfInstall.body,
   image: '/media/fallback/self-install-scene.svg',
   mediaText:
     'После покупки вы получите видеоинструкцию с практическими рекомендациями и нюансами монтажа, которые часто упускают с первого раза.',
@@ -156,44 +117,42 @@ export const selfInstallContent = {
   videoLabel: 'Видео по самостоятельному монтажу',
 }
 
-export const projectExamples = [
-  {
-    title: 'Фасад в светлой гамме',
-    texture: 'Гладкая фактура',
-    color: 'Светлый кирпич + светлый шов',
-    note: 'Пока на карточке сервисная визуализация. После загрузки реального фото здесь будет готовый объект.',
-    image: '/media/fallback/gallery-light-facade.svg',
-  },
-  {
-    title: 'Контрастный современный фасад',
-    texture: 'Клинкерная фактура',
-    color: 'Графитовый кирпич + светлый шов',
-    note: 'Пока на карточке сервисная визуализация. После загрузки реального фото здесь будет готовый объект.',
-    image: '/media/fallback/gallery-contrast-facade.svg',
-  },
-]
+const contactChannelHrefMap = {
+  phone: headerContacts.phoneHref,
+  max: '',
+  telegram: headerContacts.telegramHref,
+  vk: headerContacts.vkHref,
+  whatsapp: headerContacts.whatsappHref,
+}
 
-export const contactChannels = [
-  {
-    label: 'Телефон',
-    value: '+7 (909) 755-50-95',
-    description: 'Быстрый звонок для расчёта, подбора фактуры и обсуждения фасада.',
-    href: 'tel:+79097555095',
-    actionLabel: 'Позвонить',
-  },
-  {
-    label: 'WhatsApp',
-    value: 'Написать в WhatsApp',
-    description: 'Можно отправить фото дома и быстро уточнить детали по расчёту.',
-    href: 'https://wa.me/79097555095',
-    actionLabel: 'Написать в WhatsApp',
-    external: true,
-  },
-  {
-    label: 'Получить консультацию',
-    value: 'Связаться по удобному каналу',
-    description: 'Подскажем по фактуре, цвету, монтажу и предварительному расчёту.',
-    href: '#top',
-    actionLabel: 'Вернуться к началу',
-  },
-]
+const contactChannelValueMap = {
+  phone: headerContacts.phoneLabel,
+  max: 'Написать в Max',
+  telegram: 'Написать в Telegram',
+  vk: 'Перейти во VK',
+  whatsapp: 'Написать в WhatsApp',
+}
+
+export const projectExamples = defaultShowcaseObjects.map((item) => ({
+  color: item.color,
+  image: item.coverImagePath,
+  note: item.description,
+  texture: item.texture,
+  title: item.title,
+}))
+
+export const contactChannels = defaultContactChannelConfigs
+  .map((channel) => {
+    const href = contactChannelHrefMap[channel.key] ?? ''
+
+    if (!href) {
+      return null
+    }
+
+    return {
+      ...channel,
+      href,
+      value: channel.value ?? contactChannelValueMap[channel.key] ?? '',
+    }
+  })
+  .filter(Boolean)

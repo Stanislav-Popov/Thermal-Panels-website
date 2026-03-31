@@ -136,6 +136,7 @@ export function normalizeContactsInput(payload) {
     phone: normalizeText(payload?.phone, 'Телефон'),
     whatsappUrl: normalizeText(payload?.whatsappUrl, 'Ссылка WhatsApp'),
     telegramUrl: normalizeText(payload?.telegramUrl, 'Ссылка Telegram'),
+    maxUrl: normalizeText(payload?.maxUrl ?? '', 'Ссылка Max', { required: false }),
     vkUrl: normalizeText(payload?.vkUrl, 'Ссылка VK'),
     address: normalizeText(payload?.address ?? '', 'Адрес', { required: false }),
     workingHours: normalizeText(payload?.workingHours ?? '', 'График работы', {
