@@ -8,6 +8,7 @@ import './facade-theme.css'
 import { Footer } from './components/Footer.jsx'
 import { Header } from './components/Header.jsx'
 import { HeroSection } from './components/HeroSection.jsx'
+import { LocationSection } from './components/LocationSection.jsx'
 import { PartnersSection } from './components/PartnersSection.jsx'
 import { ProductOverviewSection } from './components/ProductOverviewSection.jsx'
 import { SelfInstallSection } from './components/SelfInstallSection.jsx'
@@ -15,6 +16,10 @@ import { SiteSeo } from './components/SiteSeo.jsx'
 import { WhyUsSection } from './components/WhyUsSection.jsx'
 import { fetchProducts, fetchSiteContent } from './lib/publicApi.js'
 import { hasConfiguredExternalUrl } from './lib/materialReadiness.js'
+import {
+  getProductPagePath,
+  readProductSlugFromPathname,
+} from './lib/seo.js'
 import {
   comparisonColumns,
   contactChannels,
@@ -40,6 +45,16 @@ function findBlock(blocks, blockKey) {
 
 function readText(value, fallback) {
   return typeof value === 'string' && value.trim() ? value.trim() : fallback
+}
+
+function readBrandTitle(value) {
+  const title = readText(value, sectionTextDefaults.header.brandTitle)
+
+  if (title.toLowerCase() === 'thermal panels') {
+    return sectionTextDefaults.header.brandTitle
+  }
+
+  return title
 }
 
 function readStringArray(value, fallback) {
@@ -183,6 +198,14 @@ function sanitizeExternalHref(value) {
   return hasConfiguredExternalUrl(value) ? value.trim() : ''
 }
 
+function readCurrentProductSlug() {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+
+  return readProductSlugFromPathname(window.location.pathname)
+}
+
 const systemContactChannelKeys = new Set([
   'phone',
   'whatsapp',
@@ -194,18 +217,134 @@ const systemContactChannelKeys = new Set([
 const defaultContactChannelConfigByKey = new Map(
   defaultContactChannelConfigs.map((item) => [item.key, item])
 )
+const locationMenuItem = {
+  href: '#location',
+  label: 'Как добраться',
+}
 
 let publicBootstrapRequest = null
 
 function createHeaderContacts(contacts) {
   return {
+    address: readText(contacts.address, headerContacts.address),
     phoneLabel: contacts.phone,
     phoneHref: normalizePhoneHref(contacts.phone),
     maxHref: sanitizeExternalHref(contacts.maxUrl),
     telegramHref: sanitizeExternalHref(contacts.telegramUrl),
     vkHref: sanitizeExternalHref(contacts.vkUrl),
     whatsappHref: sanitizeExternalHref(contacts.whatsappUrl),
+    workingHours: readText(contacts.workingHours, headerContacts.workingHours),
   }
+}
+
+function createYandexMapHref(address) {
+  const normalizedAddress = readText(address, '')
+
+  if (!normalizedAddress) {
+    return ''
+  }
+
+  const params = new URLSearchParams({
+    text: normalizedAddress,
+    z: '16',
+  })
+
+  return `https://yandex.ru/maps/?${params.toString()}`
+}
+
+function createYandexMapEmbedSrc(address) {
+  const normalizedAddress = readText(address, '')
+
+  if (!normalizedAddress) {
+    return ''
+  }
+
+  const params = new URLSearchParams({
+    mode: 'search',
+    text: normalizedAddress,
+    z: '16',
+  })
+
+  return `https://yandex.ru/map-widget/v1/?${params.toString()}`
+}
+
+function createLocationDetails(contacts) {
+  const address = readText(contacts?.address, headerContacts.address)
+
+  return {
+    address,
+    mapEmbedSrc: createYandexMapEmbedSrc(address),
+    mapHref: createYandexMapHref(address),
+    workingHours: readText(
+      contacts?.workingHours,
+      headerContacts.workingHours
+    ),
+  }
+}
+
+function withLocationMenuItem(items) {
+  const normalizedItems = Array.isArray(items) ? items : []
+
+  if (
+    normalizedItems.some(
+      (item) => readText(item?.href, '') === locationMenuItem.href
+    )
+  ) {
+    return normalizedItems
+  }
+
+  const contactsItemIndex = normalizedItems.findIndex(
+    (item) => readText(item?.href, '') === '#contacts'
+  )
+
+  if (contactsItemIndex === -1) {
+    return [...normalizedItems, locationMenuItem]
+  }
+
+  return [
+    ...normalizedItems.slice(0, contactsItemIndex + 1),
+    locationMenuItem,
+    ...normalizedItems.slice(contactsItemIndex + 1),
+  ]
+}
+
+function withLocationChannel(channels, location) {
+  const normalizedChannels = Array.isArray(channels) ? channels : []
+
+  if (!location.address || !location.mapHref) {
+    return normalizedChannels
+  }
+
+  if (
+    normalizedChannels.some(
+      (channel) =>
+        readText(channel?.key, '') === 'address' ||
+        readText(channel?.label, '').toLowerCase() === 'адрес' ||
+        readText(channel?.value, '') === location.address
+    )
+  ) {
+    return normalizedChannels
+  }
+
+  const addressChannel = {
+    actionLabel: 'Открыть карту',
+    description: 'Откройте точку в Яндекс Картах, чтобы построить маршрут.',
+    external: true,
+    href: location.mapHref,
+    key: 'address',
+    label: 'Адрес',
+    value: location.address,
+  }
+
+  if (normalizedChannels.length === 0) {
+    return [addressChannel]
+  }
+
+  return [
+    normalizedChannels[0],
+    addressChannel,
+    ...normalizedChannels.slice(1),
+  ]
 }
 
 function getDefaultContactChannelHref(channelKey, contacts) {
@@ -297,18 +436,24 @@ function mergeContactChannelConfigs(configs = null) {
   ]
 }
 
+function isVisiblePublicContactChannel(channel) {
+  return readText(channel?.key, '') !== 'vk'
+}
+
 function createContactChannels(contacts, configs = null) {
   const sourceConfigs = mergeContactChannelConfigs(configs)
 
   const resolvedChannels = sourceConfigs
     .map((config) => buildContactChannel(config, contacts))
     .filter(Boolean)
+    .filter(isVisiblePublicContactChannel)
 
   if (resolvedChannels.length > 0) {
     return resolvedChannels
   }
 
   return defaultContactChannelConfigs
+    .filter(isVisiblePublicContactChannel)
     .map((config) => buildContactChannel(config, contacts))
     .filter(Boolean)
 }
@@ -340,6 +485,9 @@ function App() {
   const [products, setProducts] = useState([])
   const [isProductsLoading, setIsProductsLoading] = useState(true)
   const [productsError, setProductsError] = useState('')
+  const [selectedProductSlug, setSelectedProductSlug] = useState(
+    readCurrentProductSlug
+  )
   const [siteContent, setSiteContent] = useState(null)
   const [siteContentError, setSiteContentError] = useState('')
 
@@ -393,6 +541,18 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    const handlePopState = () => {
+      setSelectedProductSlug(readCurrentProductSlug())
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [])
+
   const blocks = siteContent?.blocks ?? []
   const headerBlock = findBlock(blocks, 'header')
   const heroBlock = findBlock(blocks, 'hero')
@@ -409,6 +569,9 @@ function App() {
   const resolvedHeaderContacts = siteContent?.contacts
     ? createHeaderContacts(siteContent.contacts)
     : headerContacts
+  const resolvedLocation = createLocationDetails(
+    siteContent?.contacts ?? resolvedHeaderContacts
+  )
 
   const resolvedHeaderContent = {
     brand: {
@@ -420,7 +583,7 @@ function App() {
         headerBlock?.subtitle,
         sectionTextDefaults.header.brandSubtitle
       ),
-      title: readText(headerBlock?.title, sectionTextDefaults.header.brandTitle),
+      title: readBrandTitle(headerBlock?.title),
     },
     cta: {
       href: readText(headerBlock?.ctaLink, sectionTextDefaults.header.ctaHref),
@@ -440,10 +603,8 @@ function App() {
         menuActions
       )
     ),
-    menuItems: readObjectArray(
-      headerBlock?.extraData?.menuItems,
-      normalizeMenuItem,
-      menuItems
+    menuItems: withLocationMenuItem(
+      readObjectArray(headerBlock?.extraData?.menuItems, normalizeMenuItem, menuItems)
     ),
     messengerLabels: {
       telegram: readText(
@@ -471,9 +632,13 @@ function App() {
     null
   )
 
-  const resolvedContactChannels = siteContent?.contacts
+  const resolvedContactChannelsBase = siteContent?.contacts
     ? createContactChannels(siteContent.contacts, contactChannelConfigs)
-    : contactChannels
+    : contactChannels.filter(isVisiblePublicContactChannel)
+  const resolvedContactChannels = withLocationChannel(
+    resolvedContactChannelsBase,
+    resolvedLocation
+  )
 
   const resolvedProjectExamples =
     siteContent?.showcaseObjects?.length > 0
@@ -521,6 +686,9 @@ function App() {
         productOverviewBlock?.extraData?.featureImage,
         materialFeature.image
       ),
+      locationNote: resolvedLocation.address
+        ? 'г. Пятигорск, Бештаугорское шоссе, 56'
+        : '',
       text: readText(
         productOverviewBlock?.extraData?.featureText,
         materialFeature.text
@@ -624,6 +792,9 @@ function App() {
       selfInstallBlock?.extraData?.videoLabel,
       selfInstallContent.videoLabel
     ),
+    videoUrl: sanitizeExternalHref(
+      selfInstallBlock?.extraData?.videoUrl ?? selfInstallContent.videoUrl
+    ),
   }
 
   const resolvedPartnersContent = {
@@ -686,14 +857,42 @@ function App() {
       footerBlock?.extraData?.telegramLabel,
       sectionTextDefaults.footer.telegramLabel
     ),
-    vkLabel: readText(
-      footerBlock?.extraData?.vkLabel,
-      sectionTextDefaults.footer.vkLabel
-    ),
     whatsappLabel: readText(
       footerBlock?.extraData?.whatsappLabel,
       sectionTextDefaults.footer.whatsappLabel
     ),
+  }
+
+  const selectedProduct = selectedProductSlug
+    ? products.find((product) => product.slug === selectedProductSlug) ?? null
+    : null
+  const isMissingProduct =
+    Boolean(selectedProductSlug) &&
+    !isProductsLoading &&
+    !productsError &&
+    !selectedProduct
+
+  const handleOpenProduct = (slug) => {
+    const nextPath = getProductPagePath(slug)
+
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({ productSlug: slug }, '', nextPath)
+    }
+
+    setSelectedProductSlug(slug)
+  }
+
+  const handleCloseProduct = () => {
+    const nextUrl = '/#catalog'
+
+    if (
+      window.location.pathname !== '/' ||
+      window.location.hash !== '#catalog'
+    ) {
+      window.history.pushState({}, '', nextUrl)
+    }
+
+    setSelectedProductSlug('')
   }
 
   return (
@@ -702,6 +901,9 @@ function App() {
       <SiteSeo
         contacts={resolvedHeaderContacts}
         description={resolvedHeroContent.lead}
+        isMissingProduct={isMissingProduct}
+        pagePath={window.location.pathname || '/'}
+        product={selectedProduct}
         products={products}
         title={resolvedHeroContent.title}
       />
@@ -755,6 +957,7 @@ function App() {
           title={resolvedGalleryContent.title}
         />
         <CatalogSection
+          activeProductSlug={selectedProductSlug}
           contacts={resolvedHeaderContacts}
           ctaHref={resolvedCatalogContent.ctaHref}
           ctaLabel={resolvedCatalogContent.ctaLabel}
@@ -762,6 +965,8 @@ function App() {
           eyebrow={resolvedCatalogContent.eyebrow}
           error={productsError}
           isLoading={isProductsLoading}
+          onCloseProduct={handleCloseProduct}
+          onOpenProduct={handleOpenProduct}
           products={products}
           title={resolvedCatalogContent.title}
         />
@@ -790,13 +995,18 @@ function App() {
           introText={resolvedContactsContent.introText}
           title={resolvedContactsContent.title}
         />
+        <LocationSection
+          address={resolvedLocation.address}
+          mapEmbedSrc={resolvedLocation.mapEmbedSrc}
+          mapHref={resolvedLocation.mapHref}
+          workingHours={resolvedLocation.workingHours}
+        />
       </main>
       <Footer
         contacts={resolvedHeaderContacts}
         copy={resolvedFooterContent.copy}
         maxLabel={resolvedFooterContent.maxLabel}
         telegramLabel={resolvedFooterContent.telegramLabel}
-        vkLabel={resolvedFooterContent.vkLabel}
         whatsappLabel={resolvedFooterContent.whatsappLabel}
       />
     </div>

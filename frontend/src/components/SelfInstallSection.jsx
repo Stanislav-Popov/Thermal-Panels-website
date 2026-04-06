@@ -1,6 +1,12 @@
 import { Section } from './Section.jsx'
 
 export function SelfInstallSection({ content }) {
+  const normalizedVideoUrl =
+    typeof content.videoUrl === 'string' ? content.videoUrl.trim() : ''
+  const overlayClassName = normalizedVideoUrl
+    ? 'install-media__overlay install-media__overlay--video'
+    : 'install-media__overlay'
+
   return (
     <Section
       description={content.description ?? ''}
@@ -10,12 +16,24 @@ export function SelfInstallSection({ content }) {
     >
       <div className="install-grid">
         <div className="install-media">
-          <img
-            alt="Монтаж фасадных термопанелей"
-            className="install-media__image"
-            src={content.image}
-          />
-          <div className="install-media__overlay">
+          {normalizedVideoUrl ? (
+            <iframe
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              className="install-media__video"
+              loading="lazy"
+              referrerPolicy="strict-origin-when-cross-origin"
+              src={normalizedVideoUrl}
+              title={content.videoLabel ?? 'Видео по самостоятельному монтажу'}
+            />
+          ) : (
+            <img
+              alt="Монтаж фасадных термопанелей"
+              className="install-media__image"
+              src={content.image}
+            />
+          )}
+          <div className={overlayClassName}>
             <span aria-hidden="true" className="install-media__play">
               ▶
             </span>

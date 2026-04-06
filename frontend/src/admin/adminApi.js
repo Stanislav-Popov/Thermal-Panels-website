@@ -124,6 +124,16 @@ export function deleteAdminProductImage(token, productId, imageId) {
   })
 }
 
+export function reorderAdminProductImages(token, productId, imageIds) {
+  return adminRequest(`/api/admin/products/${productId}/images/order`, {
+    body: {
+      imageIds,
+    },
+    method: 'PUT',
+    token,
+  })
+}
+
 export function fetchAdminShowcaseObjects(token) {
   return adminRequest('/api/admin/showcase-objects', { token })
 }
@@ -147,6 +157,16 @@ export function updateAdminShowcaseObject(token, objectId, object) {
 export function deleteAdminShowcaseObject(token, objectId) {
   return adminRequest(`/api/admin/showcase-objects/${objectId}`, {
     method: 'DELETE',
+    token,
+  })
+}
+
+export function reorderAdminShowcaseObjects(token, showcaseIds) {
+  return adminRequest('/api/admin/showcase-objects/order', {
+    body: {
+      showcaseIds,
+    },
+    method: 'PUT',
     token,
   })
 }

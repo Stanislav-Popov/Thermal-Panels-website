@@ -22,7 +22,7 @@ INSERT INTO contacts (
   '',
   '',
   '',
-  '',
+  'Пятигорск, Бештаугорское шоссе 56',
   ''
 );
 
@@ -69,6 +69,7 @@ INSERT INTO showcase_objects (
   color,
   description,
   cover_image_path,
+  sort_order,
   is_published
 ) VALUES
   (
@@ -77,6 +78,7 @@ INSERT INTO showcase_objects (
     'Светлый кирпич + светлый шов',
     'Реальный пример светлого фасада с мягкой кладкой и спокойной гаммой.',
     '/media/gallery/Panel-and-facade-options-1.webp',
+    0,
     TRUE
   ),
   (
@@ -85,6 +87,7 @@ INSERT INTO showcase_objects (
     'Графитовый кирпич + светлый шов',
     'Реальный пример контрастного фасада с выразительным рисунком кладки.',
     '/media/gallery/Panel-and-facade-options-2.webp',
+    1,
     TRUE
   ),
   (
@@ -93,6 +96,7 @@ INSERT INTO showcase_objects (
     'Песочный кирпич + светлый шов',
     'Пример фасада со спокойным сочетанием панели и шва для мягкого визуального ритма.',
     '/media/gallery/Panel-and-facade-options-3.webp',
+    2,
     TRUE
   ),
   (
@@ -101,6 +105,7 @@ INSERT INTO showcase_objects (
     'Светлая панель + нейтральный шов',
     'Светлое фасадное решение с аккуратной кладкой и ровным спокойным тоном.',
     '/media/gallery/Panel-and-facade-options-4.webp',
+    3,
     TRUE
   ),
   (
@@ -109,6 +114,7 @@ INSERT INTO showcase_objects (
     'Тёплый кирпич + тёмный акцентный шов',
     'Контрастный пример фасада, где выразительно работает рисунок кладки и цветовой акцент.',
     '/media/gallery/Panel-and-facade-options-5.webp',
+    4,
     TRUE
   );
 

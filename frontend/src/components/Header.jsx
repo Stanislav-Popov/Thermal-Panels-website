@@ -7,11 +7,11 @@ export function Header({
   headerCta = {},
   menuActions,
   menuItems,
-  messengerLabels = {},
   phoneShortLabel = sectionTextDefaults.header.phoneShortLabel,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const menuClassName = isOpen ? 'site-menu site-menu--open' : 'site-menu'
+  const brandLogo = brand.logo ?? sectionTextDefaults.header.brandLogo
   const messengerItems = [
     {
       ariaLabel: 'Перейти к контактам',
@@ -19,27 +19,23 @@ export function Header({
       key: 'contacts',
       label: 'Контакты',
     },
-    {
-      ariaLabel: 'Написать в Telegram',
-      href: contacts.telegramHref,
-      key: 'telegram',
-      label: messengerLabels.telegram ?? sectionTextDefaults.header.messengerLabels.telegram,
-    },
-    {
-      ariaLabel: 'Перейти во VK',
-      href: contacts.vkHref,
-      key: 'vk',
-      label: messengerLabels.vk ?? sectionTextDefaults.header.messengerLabels.vk,
-    },
   ].filter((item) => item.key === 'contacts' || item.href)
 
   return (
     <header className="site-header">
       <div className="layout-container site-header__bar">
         <a className="brand-mark" href="#top" onClick={() => setIsOpen(false)}>
-          <span className="brand-mark__badge">
-            {brand.badge ?? sectionTextDefaults.header.brandBadge}
-          </span>
+          {brandLogo ? (
+            <img
+              alt={brand.title ?? sectionTextDefaults.header.brandTitle}
+              className="brand-mark__logo"
+              src={brandLogo}
+            />
+          ) : (
+            <span className="brand-mark__badge">
+              {brand.badge ?? sectionTextDefaults.header.brandBadge}
+            </span>
+          )}
           <span className="brand-mark__text">
             <span className="brand-mark__title">
               {brand.title ?? sectionTextDefaults.header.brandTitle}

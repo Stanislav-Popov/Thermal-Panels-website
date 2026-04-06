@@ -8,6 +8,7 @@ import {
   deleteAdminProduct,
   deleteAdminProductImage,
   listAdminProducts,
+  reorderAdminProductImages,
   updateAdminProduct,
 } from '../services/admin/adminCatalogService.js'
 import {
@@ -20,6 +21,7 @@ import {
   createAdminShowcaseObject,
   deleteAdminShowcaseObject,
   listAdminShowcaseObjects,
+  reorderAdminShowcaseObjects,
   updateAdminShowcaseObject,
 } from '../services/admin/adminShowcaseService.js'
 import {
@@ -79,6 +81,15 @@ adminApiRouter.post('/products/:id/images', requireAdminAuth, asyncHandler(async
   response.status(201).json(image)
 }))
 
+adminApiRouter.put(
+  '/products/:id/images/order',
+  requireAdminAuth,
+  asyncHandler(async (request, response) => {
+    const product = await reorderAdminProductImages(request.params.id, request.body ?? {})
+    response.json(product)
+  })
+)
+
 adminApiRouter.delete(
   '/products/:productId/images/:imageId',
   requireAdminAuth,
@@ -97,6 +108,12 @@ adminApiRouter.get('/showcase-objects', requireAdminAuth, asyncHandler(async (_r
 adminApiRouter.post('/showcase-objects', requireAdminAuth, asyncHandler(async (request, response) => {
   const object = await createAdminShowcaseObject(request.body ?? {})
   response.status(201).json(object)
+}))
+
+adminApiRouter.put('/showcase-objects/order', requireAdminAuth, asyncHandler(async (request, response) => {
+  response.json({
+    items: await reorderAdminShowcaseObjects(request.body ?? {}),
+  })
 }))
 
 adminApiRouter.put('/showcase-objects/:id', requireAdminAuth, asyncHandler(async (request, response) => {

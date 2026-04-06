@@ -31,7 +31,17 @@ export function isPlaceholderExternalUrl(value) {
 
 export function hasConfiguredExternalUrl(value) {
   const normalizedValue = normalizeText(value)
-  return normalizedValue !== '' && !isPlaceholderExternalUrl(normalizedValue)
+
+  if (!normalizedValue || isPlaceholderExternalUrl(normalizedValue)) {
+    return false
+  }
+
+  try {
+    const parsedUrl = new URL(normalizedValue)
+    return ['http:', 'https:'].includes(parsedUrl.protocol)
+  } catch {
+    return false
+  }
 }
 
 export function getProductMaterialGapCount(product) {
@@ -53,7 +63,6 @@ export function getContactsMaterialGapCount(contacts) {
     contacts?.whatsappUrl,
     contacts?.telegramUrl,
     contacts?.maxUrl,
-    contacts?.vkUrl,
   ].filter(
     (value) => !hasConfiguredExternalUrl(value)
   )
@@ -74,7 +83,10 @@ export function getBlockMaterialGapCount(block) {
         ? extraData.cards.filter((card) => isFallbackAssetPath(card?.image)).length
         : 0
     case 'self-install':
-      return isFallbackAssetPath(extraData.image) ? 1 : 0
+      return hasConfiguredExternalUrl(extraData.videoUrl) ||
+        !isFallbackAssetPath(extraData.image)
+        ? 0
+        : 1
     default:
       return 0
   }

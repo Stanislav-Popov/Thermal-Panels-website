@@ -7,7 +7,6 @@ export function Footer({
   copy = sectionTextDefaults.footer.copy,
   maxLabel = sectionTextDefaults.footer.maxLabel,
   telegramLabel = sectionTextDefaults.footer.telegramLabel,
-  vkLabel = sectionTextDefaults.footer.vkLabel,
   whatsappLabel = sectionTextDefaults.footer.whatsappLabel,
 }) {
   const messengerLabels = {
@@ -27,7 +26,6 @@ export function Footer({
   }))
   const footerLinks = [
     { href: contacts.phoneHref, key: 'phone', label: contacts.phoneLabel },
-    { external: true, href: contacts.vkHref, key: 'vk', label: vkLabel },
   ].filter((item) => item.href)
 
   return (

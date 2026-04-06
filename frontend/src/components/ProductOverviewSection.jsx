@@ -42,6 +42,11 @@ export function ProductOverviewSection({
         <div className="product-overview__content">
           <div className="product-overview__intro">
             <h3 className="product-overview__title">{feature.title}</h3>
+            {feature.locationNote ? (
+              <p className="product-overview__paragraph">
+                <strong>{feature.locationNote}</strong>
+              </p>
+            ) : null}
             {feature.text ? (
               <p className="product-overview__paragraph">{feature.text}</p>
             ) : null}

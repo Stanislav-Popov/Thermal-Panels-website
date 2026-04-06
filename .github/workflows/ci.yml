@@ -29,6 +29,8 @@ jobs:
         run: npm run lint
 
       - name: Build
+        env:
+          VITE_SITE_URL: http://localhost:4173
         run: npm run build
 
   backend:

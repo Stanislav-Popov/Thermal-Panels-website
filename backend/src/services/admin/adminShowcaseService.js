@@ -2,10 +2,14 @@ import {
   createShowcaseObject,
   deleteShowcaseObject,
   listShowcaseObjects,
+  reorderShowcaseObjects,
   updateShowcaseObject,
 } from '../../repositories/siteContentRepository.js'
 import { createHttpError } from '../../utils/httpErrors.js'
-import { normalizeShowcaseObjectInput } from './adminValidators.js'
+import {
+  normalizeShowcaseObjectInput,
+  normalizeShowcaseObjectOrderInput,
+} from './adminValidators.js'
 
 export async function listAdminShowcaseObjects() {
   return listShowcaseObjects({
@@ -48,4 +52,25 @@ export async function deleteAdminShowcaseObject(showcaseId) {
   if (!isDeleted) {
     throw createHttpError(404, 'SHOWCASE_NOT_FOUND', 'Объект не найден.')
   }
+}
+
+export async function reorderAdminShowcaseObjects(payload) {
+  const showcaseIds = normalizeShowcaseObjectOrderInput(payload)
+  const currentShowcaseObjects = await listShowcaseObjects({
+    includeUnpublished: true,
+  })
+  const currentShowcaseIds = currentShowcaseObjects.map((item) => item.id)
+  const isOrderPayloadActual =
+    showcaseIds.length === currentShowcaseIds.length &&
+    showcaseIds.every((showcaseId) => currentShowcaseIds.includes(showcaseId))
+
+  if (!isOrderPayloadActual) {
+    throw createHttpError(
+      400,
+      'VALIDATION_ERROR',
+      'Передан неполный или устаревший список фото объектов.'
+    )
+  }
+
+  return reorderShowcaseObjects(showcaseIds)
 }

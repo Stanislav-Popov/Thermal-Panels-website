@@ -5,11 +5,13 @@ import {
   deleteProductImage,
   findProductById,
   listProducts,
+  reorderProductImages,
   updateProduct,
 } from '../../repositories/productRepository.js'
 import { createHttpError } from '../../utils/httpErrors.js'
 import {
   normalizeProductImageInput,
+  normalizeProductImageOrderInput,
   normalizeProductInput,
 } from './adminValidators.js'
 
@@ -85,6 +87,44 @@ export async function createAdminProductImage(productId, payload) {
   }
 
   return addProductImage(normalizedId, normalizeProductImageInput(payload))
+}
+
+export async function reorderAdminProductImages(productId, payload) {
+  const normalizedId = Number(productId)
+
+  if (!Number.isInteger(normalizedId) || normalizedId <= 0) {
+    throw createHttpError(400, 'VALIDATION_ERROR', 'Некорректный идентификатор товара.')
+  }
+
+  const product = await findProductById(normalizedId, {
+    includeHidden: true,
+  })
+
+  if (!product) {
+    throw createHttpError(404, 'PRODUCT_NOT_FOUND', 'Товар не найден.')
+  }
+
+  const imageIds = normalizeProductImageOrderInput(payload)
+  const currentImageIds = product.gallery.map((image) => image.id)
+  const isOrderPayloadActual =
+    imageIds.length === currentImageIds.length &&
+    imageIds.every((imageId) => currentImageIds.includes(imageId))
+
+  if (!isOrderPayloadActual) {
+    throw createHttpError(
+      400,
+      'VALIDATION_ERROR',
+      'Передан неполный или устаревший список фотографий товара.'
+    )
+  }
+
+  const updatedProduct = await reorderProductImages(normalizedId, imageIds)
+
+  if (!updatedProduct) {
+    throw createHttpError(404, 'PRODUCT_NOT_FOUND', 'Товар не найден.')
+  }
+
+  return updatedProduct
 }
 
 export async function deleteAdminProductImage(productId, imageId) {

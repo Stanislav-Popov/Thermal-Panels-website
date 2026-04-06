@@ -12,6 +12,7 @@ const headerMenuItems = [
   { label: 'Монтаж', href: '#self-install' },
   { label: 'Партнёрам', href: '#partners' },
   { label: 'Контакты', href: '#contacts' },
+  { label: 'Как добраться', href: '#location' },
 ]
 
 const headerMenuActions = [
@@ -168,6 +169,7 @@ export const defaultSiteContentBlocks = [
         'После покупки вы получите видеоинструкцию с практическими рекомендациями и нюансами, которые обычно не учитывают с первого раза.',
       ],
       videoLabel: 'Видео по самостоятельному монтажу',
+      videoUrl: '',
     },
   },
   {

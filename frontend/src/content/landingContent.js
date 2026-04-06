@@ -14,13 +14,16 @@ export const menuItems = [
   { label: 'Монтаж', href: '#self-install' },
   { label: 'Партнёрам', href: '#partners' },
   { label: 'Контакты', href: '#contacts' },
+  { label: 'Как добраться', href: '#location' },
 ]
 
 export const headerContacts = {
+  address: 'Пятигорск, Бештаугорское шоссе 56',
   maxHref: '',
   phoneLabel: '+7 (909) 755-50-95',
   phoneHref: 'tel:+79097555095',
   whatsappHref: 'https://wa.me/79097555095',
+  workingHours: '',
   telegramHref: '',
   vkHref: '',
 }
@@ -115,6 +118,7 @@ export const selfInstallContent = {
     'После покупки вы получите видеоинструкцию с практическими рекомендациями и нюансами, которые обычно не учитывают с первого раза.',
   ],
   videoLabel: 'Видео по самостоятельному монтажу',
+  videoUrl: '',
 }
 
 const contactChannelHrefMap = {

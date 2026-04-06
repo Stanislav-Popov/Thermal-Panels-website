@@ -12,6 +12,8 @@ backend/.env
 backend/.env.*.local
 frontend/.env
 frontend/.env.*.local
+frontend/public/robots.txt
+frontend/public/sitemap.xml
 *.local
 
 # Runtime/generated data

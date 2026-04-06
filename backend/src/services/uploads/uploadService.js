@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { mkdirSync } from 'node:fs'
-import { basename, dirname, extname, resolve } from 'node:path'
+import { rm } from 'node:fs/promises'
+import { basename, dirname, extname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import multer from 'multer'
 import { config } from '../../config.js'
@@ -10,6 +11,7 @@ const currentDirectory = dirname(fileURLToPath(import.meta.url))
 const backendDirectory = resolve(currentDirectory, '../../..')
 
 const uploadScopes = {
+  'content-images': 'content-images',
   'product-images': 'product-images',
   'showcase-images': 'showcase-images',
 }
@@ -152,5 +154,40 @@ export function getUploadedImagePayload(file, scope) {
     mimeType: file.mimetype,
     originalName: file.originalname,
     size: file.size,
+  }
+}
+
+export async function deleteUploadedImageFile(imagePath) {
+  const normalizedPath = typeof imagePath === 'string' ? imagePath.trim() : ''
+
+  if (!normalizedPath || !normalizedPath.startsWith('/uploads/')) {
+    return false
+  }
+
+  const relativePath = normalizedPath
+    .replace(/^\/uploads\//, '')
+    .split('/')
+    .filter(Boolean)
+    .join('/')
+
+  if (!relativePath) {
+    return false
+  }
+
+  const absolutePath = resolve(uploadsRootDirectory, relativePath)
+  const uploadsRootPrefix = `${uploadsRootDirectory}${sep}`
+
+  if (absolutePath !== uploadsRootDirectory && !absolutePath.startsWith(uploadsRootPrefix)) {
+    return false
+  }
+
+  try {
+    await rm(absolutePath, { force: true })
+    return true
+  } catch (error) {
+    console.warn(
+      `[uploads] Не удалось удалить файл ${normalizedPath}: ${error.message}`
+    )
+    return false
   }
 }

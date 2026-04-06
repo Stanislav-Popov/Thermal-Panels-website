@@ -9,6 +9,8 @@ import {
   deleteAdminShowcaseObject,
   fetchAdminDashboard,
   loginAdmin,
+  reorderAdminProductImages,
+  reorderAdminShowcaseObjects,
   uploadAdminImage,
   updateAdminContacts,
   updateAdminProduct,
@@ -24,7 +26,7 @@ import {
   getContactsMaterialGapCount,
   getProductMaterialGapCount,
   getShowcaseMaterialGapCount,
-  isFallbackAssetPath,
+  hasConfiguredExternalUrl,
 } from '../lib/materialReadiness.js'
 import { setNamedMeta } from '../lib/documentMeta.js'
 
@@ -36,6 +38,49 @@ const tabItems = [
   { id: 'content', label: 'Контент' },
   { id: 'contacts', label: 'Контакты' },
 ]
+
+const productAvailabilityOptions = ['В наличии', 'Под заказ']
+const productImageKindSequence = [
+  'Фото панели издалека',
+  'Крупный план',
+  'Фото сбоку',
+  'Фото дома',
+]
+const slugTransliterationMap = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'e',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'y',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'h',
+  ц: 'c',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'sch',
+  ъ: '',
+  ы: 'y',
+  ь: '',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya',
+}
 
 const adminDashboardRequests = new Map()
 
@@ -153,7 +198,28 @@ function createEmptyContactsForm() {
   }
 }
 
+function useObjectUrl(file) {
+  const objectUrl = useMemo(
+    () => (file ? URL.createObjectURL(file) : ''),
+    [file]
+  )
+
+  useEffect(() => {
+    if (!objectUrl) {
+      return undefined
+    }
+
+    return () => {
+      URL.revokeObjectURL(objectUrl)
+    }
+  }, [objectUrl])
+
+  return objectUrl
+}
+
 function mapProductToForm(product) {
+  const description = getProductDescription(product)
+
   return {
     slug: product.slug,
     name: product.name,
@@ -165,15 +231,20 @@ function mapProductToForm(product) {
     priceCurrent: String(product.priceCurrent),
     priceOld: product.priceOld === null ? '' : String(product.priceOld),
     availabilityStatus: product.availabilityStatus,
-    shortDescription: product.shortDescription,
-    fullDescription: product.fullDescription,
+    shortDescription: description,
+    fullDescription: description,
     isHidden: product.isHidden,
   }
 }
 
 function normalizeProductForm(form) {
+  const description = normalizeOptionalText(form.fullDescription)
+
   return {
     ...form,
+    slug: getProductFormSlug(form),
+    shortDescription: description,
+    fullDescription: description,
     panelArea: Number(form.panelArea),
     priceCurrent: Number(form.priceCurrent),
     priceOld: form.priceOld === '' ? null : Number(form.priceOld),
@@ -226,6 +297,121 @@ function normalizeOptionalText(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function getProductDescription(product) {
+  return normalizeOptionalText(product?.fullDescription) ||
+    normalizeOptionalText(product?.shortDescription)
+}
+
+function getProductAvailabilityChoices(currentStatus) {
+  const normalizedStatus = normalizeOptionalText(currentStatus)
+
+  return normalizedStatus &&
+    !productAvailabilityOptions.includes(normalizedStatus)
+    ? [...productAvailabilityOptions, normalizedStatus]
+    : productAvailabilityOptions
+}
+
+function createProductSlug(value) {
+  const slug = normalizeOptionalText(value)
+    .toLowerCase()
+    .split('')
+    .map((symbol) => slugTransliterationMap[symbol] ?? symbol)
+    .join('')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return slug || 'product'
+}
+
+function getProductFormSlug(form) {
+  return (
+    normalizeOptionalText(form.slug) ||
+    createProductSlug(
+      [
+        form.name,
+        form.texture,
+        form.brickColor,
+        form.jointColor,
+        form.thickness,
+      ]
+        .map(normalizeOptionalText)
+        .filter(Boolean)
+        .join(' ')
+    )
+  )
+}
+
+function getNextProductImageSortOrder(gallery) {
+  if (!Array.isArray(gallery) || gallery.length === 0) {
+    return 0
+  }
+
+  return Math.max(...gallery.map((image) => Number(image.sortOrder) || 0)) + 1
+}
+
+function moveArrayItem(items, sourceIndex, targetIndex) {
+  if (
+    !Array.isArray(items) ||
+    sourceIndex === targetIndex ||
+    sourceIndex < 0 ||
+    targetIndex < 0 ||
+    sourceIndex >= items.length ||
+    targetIndex >= items.length
+  ) {
+    return Array.isArray(items) ? [...items] : []
+  }
+
+  const nextItems = [...items]
+  const [movedItem] = nextItems.splice(sourceIndex, 1)
+  nextItems.splice(targetIndex, 0, movedItem)
+
+  return nextItems
+}
+
+function buildProductImageDraft({ gallery = [], imagePath, kind, productName }) {
+  const normalizedKind =
+    normalizeOptionalText(kind) ||
+    productImageKindSequence[gallery.length] ||
+    `Фото товара ${gallery.length + 1}`
+  const normalizedProductName = normalizeOptionalText(productName) || 'Товар'
+
+  return {
+    alt: `${normalizedProductName}. ${normalizedKind}`,
+    image: imagePath,
+    kind: normalizedKind,
+    note: normalizedKind,
+    sortOrder: getNextProductImageSortOrder(gallery),
+  }
+}
+
+function buildShowcaseObjectDraft({ coverImagePath, fallbackIndex, showcaseForm }) {
+  const objectNumber = Number.isInteger(fallbackIndex) ? fallbackIndex + 1 : 1
+
+  return {
+    title: normalizeOptionalText(showcaseForm.title) || `Фото объекта ${objectNumber}`,
+    texture: normalizeOptionalText(showcaseForm.texture) || 'Объекты',
+    color: normalizeOptionalText(showcaseForm.color) || 'Фото фасада',
+    description:
+      normalizeOptionalText(showcaseForm.description) ||
+      'Фото реализованного объекта.',
+    coverImagePath,
+    isPublished: showcaseForm.isPublished !== false,
+  }
+}
+
+function sortShowcaseObjectsByDisplayOrder(showcaseObjects) {
+  return [...showcaseObjects].sort((left, right) => {
+    const leftOrder = Number(left.sortOrder) || 0
+    const rightOrder = Number(right.sortOrder) || 0
+
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder
+    }
+
+    return left.id - right.id
+  })
+}
+
 function validateRequiredNumberField(value, fieldLabel, { min = 0 } = {}) {
   const normalizedValue = normalizeOptionalText(value)
 
@@ -240,6 +426,10 @@ function validateRequiredNumberField(value, fieldLabel, { min = 0 } = {}) {
   }
 
   return ''
+}
+
+function validateRequiredTextField(value, fieldLabel) {
+  return normalizeOptionalText(value) ? '' : `${fieldLabel} обязательно.`
 }
 
 function validateOptionalNumberField(value, fieldLabel, { min = 0 } = {}) {
@@ -258,16 +448,186 @@ function validateOptionalNumberField(value, fieldLabel, { min = 0 } = {}) {
   return ''
 }
 
+function validateOptionalExternalUrlField(value, fieldLabel) {
+  const normalizedValue = normalizeOptionalText(value)
+
+  if (!normalizedValue) {
+    return ''
+  }
+
+  return hasConfiguredExternalUrl(normalizedValue)
+    ? ''
+    : `${fieldLabel} должен быть корректным http/https URL и не служебной заглушкой.`
+}
+
+function validateOptionalContentHrefField(value, fieldLabel) {
+  const normalizedValue = normalizeOptionalText(value)
+
+  if (!normalizedValue) {
+    return ''
+  }
+
+  if (normalizedValue.startsWith('#') || normalizedValue.startsWith('/')) {
+    return /\s/.test(normalizedValue)
+      ? `${fieldLabel} не должна содержать пробелы.`
+      : ''
+  }
+
+  if (normalizedValue.startsWith('tel:')) {
+    return /^tel:\+?[0-9()\-.\s]{5,}$/.test(normalizedValue)
+      ? ''
+      : `${fieldLabel} должна быть корректной tel:-ссылкой.`
+  }
+
+  return validateOptionalExternalUrlField(value, fieldLabel)
+}
+
 function validateProductForm(form) {
-  return (
+  const validationError =
+    validateRequiredTextField(getProductFormSlug(form), 'URL товара') ||
+    validateRequiredTextField(form.name, 'Название товара') ||
+    validateRequiredTextField(form.texture, 'Фактура') ||
+    validateRequiredTextField(form.availabilityStatus, 'Статус наличия') ||
+    validateRequiredTextField(form.brickColor, 'Цвет кирпича') ||
+    validateRequiredTextField(form.jointColor, 'Цвет шва') ||
+    validateRequiredTextField(form.thickness, 'Толщина') ||
+    validateRequiredTextField(form.fullDescription, 'Описание товара') ||
     validateRequiredNumberField(form.panelArea, 'Площадь панели', { min: 0.01 }) ||
     validateRequiredNumberField(form.priceCurrent, 'Текущая цена', { min: 0 }) ||
     validateOptionalNumberField(form.priceOld, 'Старая цена', { min: 0 })
+
+  if (validationError) {
+    return validationError
+  }
+
+  const currentPrice = Number(normalizeOptionalText(form.priceCurrent))
+  const oldPriceText = normalizeOptionalText(form.priceOld)
+
+  if (oldPriceText && Number(oldPriceText) <= currentPrice) {
+    return 'Старая цена должна быть больше текущей цены.'
+  }
+
+  return ''
+}
+
+function validateContentBlockExtraData(blockKey, extraData) {
+  if (blockKey === 'self-install') {
+    return validateOptionalExternalUrlField(
+      extraData?.videoUrl,
+      'Video URL / embed'
+    )
+  }
+
+  return ''
+}
+
+function validateContactsForm(form) {
+  return (
+    validateOptionalExternalUrlField(form.whatsappUrl, 'Ссылка WhatsApp') ||
+    validateOptionalExternalUrlField(form.telegramUrl, 'Ссылка Telegram') ||
+    validateOptionalExternalUrlField(form.maxUrl, 'Ссылка Max')
   )
 }
 
-function validateContentBlockExtraData() {
-  return ''
+function getProductDraftBaseline(productId, products) {
+  const product = products.find((item) => item.id === productId) ?? null
+  return product ? mapProductToForm(product) : createEmptyProductForm()
+}
+
+function getShowcaseDraftBaseline(showcaseId, showcaseObjects) {
+  const showcaseObject =
+    showcaseObjects.find((item) => item.id === showcaseId) ?? null
+  return showcaseObject
+    ? mapShowcaseToForm(showcaseObject)
+    : createEmptyShowcaseForm()
+}
+
+function getContentDraftBaseline(blockKey, blocks) {
+  const block = blocks.find((item) => item.blockKey === blockKey) ?? null
+  return block ? mapBlockToDraft(block) : createEmptyContentDraft()
+}
+
+function getContentImageFieldName(blockKey) {
+  switch (blockKey) {
+    case 'hero':
+    case 'self-install':
+      return 'image'
+    case 'product-overview':
+      return 'featureImage'
+    default:
+      return ''
+  }
+}
+
+function stringifyFormState(value) {
+  return JSON.stringify(value ?? {})
+}
+
+function createContentDraftSnapshot(draft) {
+  return stringifyFormState({
+    blockKey: draft.blockKey,
+    body: draft.body,
+    ctaLabel: draft.ctaLabel,
+    ctaLink: draft.ctaLink,
+    extraData: draft.isAdvancedMode || draft.extraDataError
+      ? normalizeOptionalText(draft.extraDataText)
+      : stringifyContentExtraData(ensureObject(draft.extraData)),
+    subtitle: draft.subtitle,
+    title: draft.title,
+  })
+}
+
+function hasProductDraftChanges({
+  editingProductId,
+  imageForm,
+  pendingProductImageFile,
+  productForm,
+  products,
+}) {
+  return (
+    stringifyFormState(productForm) !==
+      stringifyFormState(getProductDraftBaseline(editingProductId, products)) ||
+    stringifyFormState(imageForm) !==
+      stringifyFormState(createEmptyImageForm()) ||
+    Boolean(pendingProductImageFile)
+  )
+}
+
+function hasShowcaseDraftChanges({
+  editingShowcaseId,
+  pendingShowcaseImageFile,
+  showcaseForm,
+  showcaseObjects,
+}) {
+  return (
+    stringifyFormState(showcaseForm) !==
+      stringifyFormState(
+        getShowcaseDraftBaseline(editingShowcaseId, showcaseObjects)
+      ) ||
+    Boolean(pendingShowcaseImageFile)
+  )
+}
+
+function hasContentDraftChanges({
+  blockDraft,
+  blocks,
+  pendingContentImageFile,
+  selectedBlockKey,
+}) {
+  return (
+    createContentDraftSnapshot(blockDraft) !==
+      createContentDraftSnapshot(
+        getContentDraftBaseline(selectedBlockKey, blocks)
+      ) ||
+    Boolean(pendingContentImageFile)
+  )
+}
+
+function hasContactsDraftChanges({ contacts, contactsForm }) {
+  return (
+    stringifyFormState(contactsForm) !==
+    stringifyFormState(mapContactsToForm(contacts))
+  )
 }
 
 function formatPrice(value) {
@@ -328,6 +688,42 @@ function ContentEditorCard({ actions = null, children, description, title }) {
   )
 }
 
+function AdminModal({
+  children,
+  isCloseDisabled = false,
+  isOpen,
+  onClose,
+  title,
+}) {
+  if (!isOpen) {
+    return null
+  }
+
+  return (
+    <div className="admin-modal-backdrop">
+      <section
+        aria-label={title}
+        aria-modal="true"
+        className="admin-panel admin-modal"
+        role="dialog"
+      >
+        <div className="admin-modal__header">
+          <h2 className="admin-panel__title">{title}</h2>
+          <button
+            className="admin-button admin-button--ghost"
+            disabled={isCloseDisabled}
+            onClick={onClose}
+            type="button"
+          >
+            Закрыть
+          </button>
+        </div>
+        <div className="admin-modal__body">{children}</div>
+      </section>
+    </div>
+  )
+}
+
 function ContentEditorItem({ children, description, onRemove, title }) {
   return (
     <div className="admin-editor-item">
@@ -364,6 +760,44 @@ function ContentImagePreview({ alt, src }) {
       className="admin-form__preview admin-form__preview--small"
       src={normalizedSrc}
     />
+  )
+}
+
+function ContentImageUploadField({
+  imagePath,
+  inputRef,
+  label,
+  onChangeImagePath,
+  onSelectFile,
+  previewAlt,
+  previewUrl,
+  uploadName,
+}) {
+  return (
+    <>
+      <div className="admin-grid admin-grid--two">
+        <AdminField label="Загрузить файл">
+          <input
+            accept="image/*"
+            className="admin-input admin-file-input"
+            onChange={onSelectFile}
+            ref={inputRef}
+            type="file"
+          />
+        </AdminField>
+        <AdminField label={label}>
+          <input
+            className="admin-input"
+            onChange={(event) => onChangeImagePath(event.target.value)}
+            value={imagePath}
+          />
+        </AdminField>
+      </div>
+      {uploadName ? (
+        <div className="admin-upload-note">Выбран файл: {uploadName}</div>
+      ) : null}
+      <ContentImagePreview alt={previewAlt} src={previewUrl || imagePath} />
+    </>
   )
 }
 
@@ -1018,33 +1452,46 @@ function HeaderContentEditor({ extraData, onChangeExtraData }) {
   )
 }
 
-function HeroContentEditor({ extraData, onChangeExtraData }) {
+function HeroContentEditor({
+  contentImageInputRef,
+  contentImagePreviewUrl,
+  contentImageUploadName,
+  extraData,
+  onChangeExtraData,
+  onSelectContentImageFile,
+}) {
   return (
     <ContentEditorCard
       description="Основное изображение первого экрана. Текст кнопки и ссылка для hero редактируются в основных полях блока выше."
       title="Изображение первого экрана"
     >
-      <AdminField label="Путь к изображению">
-        <input
-          className="admin-input"
-          onChange={(event) =>
-            onChangeExtraData((current) => ({
-              ...current,
-              image: event.target.value,
-            }))
-          }
-          value={extraData.image ?? ''}
-        />
-      </AdminField>
-      <ContentImagePreview
-        alt="Предпросмотр hero-изображения"
-        src={extraData.image}
+      <ContentImageUploadField
+        imagePath={extraData.image ?? ''}
+        inputRef={contentImageInputRef}
+        label="Путь к изображению"
+        onChangeImagePath={(nextImagePath) =>
+          onChangeExtraData((current) => ({
+            ...current,
+            image: nextImagePath,
+          }))
+        }
+        onSelectFile={onSelectContentImageFile}
+        previewAlt="Предпросмотр hero-изображения"
+        previewUrl={contentImagePreviewUrl}
+        uploadName={contentImageUploadName}
       />
     </ContentEditorCard>
   )
 }
 
-function ProductOverviewContentEditor({ extraData, onChangeExtraData }) {
+function ProductOverviewContentEditor({
+  contentImageInputRef,
+  contentImagePreviewUrl,
+  contentImageUploadName,
+  extraData,
+  onChangeExtraData,
+  onSelectContentImageFile,
+}) {
   return (
     <div className="admin-editor-stack">
       <ContentEditorCard
@@ -1064,22 +1511,23 @@ function ProductOverviewContentEditor({ extraData, onChangeExtraData }) {
               value={extraData.featureTitle ?? ''}
             />
           </AdminField>
-          <AdminField label="Путь к изображению">
-            <input
-              className="admin-input"
-              onChange={(event) =>
-                onChangeExtraData((current) => ({
-                  ...current,
-                  featureImage: event.target.value,
-                }))
-              }
-              value={extraData.featureImage ?? ''}
-            />
-          </AdminField>
         </div>
-        <ContentImagePreview
-          alt={extraData.featureTitle || 'Главное изображение блока описания'}
-          src={extraData.featureImage}
+        <ContentImageUploadField
+          imagePath={extraData.featureImage ?? ''}
+          inputRef={contentImageInputRef}
+          label="Путь к изображению"
+          onChangeImagePath={(nextImagePath) =>
+            onChangeExtraData((current) => ({
+              ...current,
+              featureImage: nextImagePath,
+            }))
+          }
+          onSelectFile={onSelectContentImageFile}
+          previewAlt={
+            extraData.featureTitle || 'Главное изображение блока описания'
+          }
+          previewUrl={contentImagePreviewUrl}
+          uploadName={contentImageUploadName}
         />
         <AdminField label="Текст акцента">
           <textarea
@@ -1207,24 +1655,46 @@ function CalculatorContentEditor() {
   )
 }
 
-function SelfInstallContentEditor({ extraData, onChangeExtraData }) {
+function SelfInstallContentEditor({
+  contentImageInputRef,
+  contentImagePreviewUrl,
+  contentImageUploadName,
+  extraData,
+  onChangeExtraData,
+  onSelectContentImageFile,
+}) {
   return (
     <div className="admin-editor-stack">
       <ContentEditorCard
-        description="Изображение и подписи в блоке самостоятельного монтажа."
+        description="Обложка, embed-ссылка и подписи в блоке самостоятельного монтажа."
         title="Медиа-блок"
       >
+        <ContentImageUploadField
+          imagePath={extraData.image ?? ''}
+          inputRef={contentImageInputRef}
+          label="Путь к изображению"
+          onChangeImagePath={(nextImagePath) =>
+            onChangeExtraData((current) => ({
+              ...current,
+              image: nextImagePath,
+            }))
+          }
+          onSelectFile={onSelectContentImageFile}
+          previewAlt={extraData.videoLabel || 'Блок самостоятельного монтажа'}
+          previewUrl={contentImagePreviewUrl}
+          uploadName={contentImageUploadName}
+        />
         <div className="admin-grid admin-grid--two">
-          <AdminField label="Путь к изображению">
+          <AdminField label="Video URL / embed">
             <input
               className="admin-input"
               onChange={(event) =>
                 onChangeExtraData((current) => ({
                   ...current,
-                  image: event.target.value,
+                  videoUrl: event.target.value,
                 }))
               }
-              value={extraData.image ?? ''}
+              value={extraData.videoUrl ?? ''}
             />
           </AdminField>
           <AdminField label="Подпись видео">
@@ -1240,10 +1710,6 @@ function SelfInstallContentEditor({ extraData, onChangeExtraData }) {
             />
           </AdminField>
         </div>
-        <ContentImagePreview
-          alt={extraData.videoLabel || 'Блок самостоятельного монтажа'}
-          src={extraData.image}
-        />
         <AdminField label="Текст поверх изображения">
           <textarea
             className="admin-textarea admin-textarea--compact"
@@ -1423,7 +1889,15 @@ function FooterContentEditor({ extraData, onChangeExtraData }) {
   )
 }
 
-function StructuredContentEditor({ blockKey, extraData, onChangeExtraData }) {
+function StructuredContentEditor({
+  blockKey,
+  contentImageInputRef,
+  contentImagePreviewUrl,
+  contentImageUploadName,
+  extraData,
+  onChangeExtraData,
+  onSelectContentImageFile,
+}) {
   switch (blockKey) {
     case 'header':
       return (
@@ -1435,15 +1909,23 @@ function StructuredContentEditor({ blockKey, extraData, onChangeExtraData }) {
     case 'hero':
       return (
         <HeroContentEditor
+          contentImageInputRef={contentImageInputRef}
+          contentImagePreviewUrl={contentImagePreviewUrl}
+          contentImageUploadName={contentImageUploadName}
           extraData={extraData}
           onChangeExtraData={onChangeExtraData}
+          onSelectContentImageFile={onSelectContentImageFile}
         />
       )
     case 'product-overview':
       return (
         <ProductOverviewContentEditor
+          contentImageInputRef={contentImageInputRef}
+          contentImagePreviewUrl={contentImagePreviewUrl}
+          contentImageUploadName={contentImageUploadName}
           extraData={extraData}
           onChangeExtraData={onChangeExtraData}
+          onSelectContentImageFile={onSelectContentImageFile}
         />
       )
     case 'why-us':
@@ -1472,8 +1954,12 @@ function StructuredContentEditor({ blockKey, extraData, onChangeExtraData }) {
     case 'self-install':
       return (
         <SelfInstallContentEditor
+          contentImageInputRef={contentImageInputRef}
+          contentImagePreviewUrl={contentImagePreviewUrl}
+          contentImageUploadName={contentImageUploadName}
           extraData={extraData}
           onChangeExtraData={onChangeExtraData}
+          onSelectContentImageFile={onSelectContentImageFile}
         />
       )
     case 'partners':
@@ -1504,17 +1990,16 @@ function StructuredContentEditor({ blockKey, extraData, onChangeExtraData }) {
 
 function ProductsPanel({
   editingProductId,
-  imageForm,
-  imageUploadName,
+  isEditorOpen,
   isSaving,
-  onChangeImageForm,
   onChangeProductForm,
+  onCloseEditor,
   onDeleteImage,
   onDeleteProduct,
   onEditProduct,
+  onReorderImages,
   onSelectImageFile,
   onResetProductForm,
-  onSaveImage,
   onSaveProduct,
   productForm,
   productImageInputRef,
@@ -1524,123 +2009,194 @@ function ProductsPanel({
     () => products.find((product) => product.id === editingProductId) ?? null,
     [editingProductId, products]
   )
+  const [draggedImageId, setDraggedImageId] = useState(null)
+  const [dragOverImageId, setDragOverImageId] = useState(null)
+  const [previewImage, setPreviewImage] = useState(null)
+  const draggedImageIdRef = useRef(null)
   const currentProductPendingMediaCount = currentProduct
     ? getProductMaterialGapCount(currentProduct)
     : 0
+  const availabilityChoices = useMemo(
+    () => getProductAvailabilityChoices(productForm.availabilityStatus),
+    [productForm.availabilityStatus]
+  )
+
+  const handleImageDragStart = (event, imageId) => {
+    if (isSaving) {
+      event.preventDefault()
+      return
+    }
+
+    draggedImageIdRef.current = imageId
+    setDraggedImageId(imageId)
+    setDragOverImageId(null)
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(imageId))
+  }
+
+  const handleImageDragOver = (event, imageId) => {
+    if (isSaving || draggedImageId === imageId) {
+      return
+    }
+
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    setDragOverImageId(imageId)
+  }
+
+  const handleImageDrop = (event, targetImageId) => {
+    event.preventDefault()
+    const transferImageId = Number(event.dataTransfer.getData('text/plain'))
+    const sourceImageId = Number.isInteger(draggedImageIdRef.current)
+      ? draggedImageIdRef.current
+      : transferImageId
+
+    draggedImageIdRef.current = null
+    setDraggedImageId(null)
+    setDragOverImageId(null)
+
+    if (
+      !currentProduct ||
+      !Number.isInteger(sourceImageId) ||
+      sourceImageId === targetImageId
+    ) {
+      return
+    }
+
+    onReorderImages(currentProduct.id, sourceImageId, targetImageId)
+  }
+
+  const handleImageDragEnd = () => {
+    draggedImageIdRef.current = null
+    setDraggedImageId(null)
+    setDragOverImageId(null)
+  }
+
+  const productEditorFormId = `admin-product-editor-${editingProductId ?? 'new'}`
+  const activePreviewImage =
+    isEditorOpen && previewImage
+      ? currentProduct?.gallery.find((image) => image.id === previewImage.id) ?? null
+      : null
 
   return (
     <div className="admin-section">
-      <div className="admin-section__split">
-        <div className="admin-panel">
-          <div className="admin-panel__header">
-            <div>
-              <h2 className="admin-panel__title">Товары каталога</h2>
-              <p className="admin-panel__lead">
-                Редактирование карточек, цен, скрытия из каталога и набора фото.
-              </p>
-            </div>
-            <button
-              className="admin-button admin-button--ghost"
-              onClick={onResetProductForm}
-              type="button"
-            >
-              Новый товар
-            </button>
+      <div className="admin-panel admin-panel--single">
+        <div className="admin-panel__header">
+          <div>
+            <h2 className="admin-panel__title">Товары каталога</h2>
+            <p className="admin-panel__lead">
+              Редактирование карточек, цен, скрытия из каталога и набора фото.
+            </p>
           </div>
-
-          <div className="admin-card-list">
-            {products.map((product) => (
-              <article className="admin-card" key={product.id}>
-                <div className="admin-card__body">
-                  {getProductMaterialGapCount(product) > 0 ? (
-                    <div className="admin-inline-note admin-inline-note--compact admin-inline-note--warning">
-                      Нужны реальные фото товара
-                    </div>
-                  ) : null}
-                  {product.gallery[0] ? (
-                    <img
-                      alt={product.gallery[0].alt}
-                      className="admin-card__preview"
-                      src={product.gallery[0].image}
-                    />
-                  ) : null}
-                  <div className="admin-card__meta-row">
-                    <span className="admin-chip">{product.texture}</span>
-                    {getProductMaterialGapCount(product) > 0 ? (
-                      <span className="admin-chip admin-chip--warning">
-                        {getProductMaterialGapCount(product)} media-gap
-                      </span>
-                    ) : null}
-                    <span
-                      className={`admin-chip${product.isHidden ? ' admin-chip--warning' : ''}`}
-                    >
-                      {product.isHidden ? 'Скрыт' : product.availabilityStatus}
-                    </span>
-                  </div>
-                  <h3 className="admin-card__title">{product.name}</h3>
-                  <p className="admin-card__text">{product.shortDescription}</p>
-                  <div className="admin-card__stats">
-                    <span>{formatPrice(product.priceCurrent)}</span>
-                    <span>{product.gallery.length} фото</span>
-                  </div>
-                </div>
-                <div className="admin-card__actions">
-                  <button
-                    className="admin-button admin-button--ghost"
-                    onClick={() => onEditProduct(product)}
-                    type="button"
-                  >
-                    Редактировать
-                  </button>
-                  <button
-                    className="admin-button admin-button--danger"
-                    onClick={() => onDeleteProduct(product.id)}
-                    type="button"
-                  >
-                    Удалить
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
+          <button
+            className="admin-button admin-button--ghost"
+            disabled={isSaving}
+            onClick={onResetProductForm}
+            type="button"
+          >
+            Новый товар
+          </button>
         </div>
 
-        <div className="admin-panel admin-panel--sticky">
-          <div className="admin-panel__header">
-            <div>
-              <h2 className="admin-panel__title">
-                {editingProductId ? 'Редактор товара' : 'Новый товар'}
-              </h2>
-              <p className="admin-panel__lead">
-                Все поля соответствуют backend CRUD и текущей схеме PostgreSQL.
-              </p>
-            </div>
-          </div>
+        <div className="admin-card-list">
+          {products.map((product) => (
+            <article className="admin-card" key={product.id}>
+              <div className="admin-card__body">
+                {getProductMaterialGapCount(product) > 0 ? (
+                  <div className="admin-inline-note admin-inline-note--compact admin-inline-note--warning">
+                    Нужны реальные фото товара
+                  </div>
+                ) : null}
+                {product.gallery[0] ? (
+                  <img
+                    alt={product.gallery[0].alt}
+                    className="admin-card__preview"
+                    src={product.gallery[0].image}
+                  />
+                ) : null}
+                <div className="admin-card__meta-row">
+                  <span className="admin-chip">{product.texture}</span>
+                  {getProductMaterialGapCount(product) > 0 ? (
+                    <span className="admin-chip admin-chip--warning">
+                      {getProductMaterialGapCount(product)} media-gap
+                    </span>
+                  ) : null}
+                  <span
+                    className={`admin-chip${product.isHidden ? ' admin-chip--warning' : ''}`}
+                  >
+                    {product.isHidden ? 'Скрыт' : product.availabilityStatus}
+                  </span>
+                </div>
+                <h3 className="admin-card__title">{product.name}</h3>
+                <p className="admin-card__text">{getProductDescription(product)}</p>
+                <div className="admin-card__stats">
+                  <span>{formatPrice(product.priceCurrent)}</span>
+                  <span>{product.gallery.length} фото</span>
+                </div>
+              </div>
+              <div className="admin-card__actions">
+                <button
+                  className="admin-button admin-button--ghost"
+                  disabled={isSaving}
+                  onClick={() => onEditProduct(product)}
+                  type="button"
+                >
+                  Редактировать
+                </button>
+                <button
+                  className="admin-button admin-button--danger"
+                  disabled={isSaving}
+                  onClick={() => onDeleteProduct(product.id)}
+                  type="button"
+                >
+                  Удалить
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
 
-          <form className="admin-form" onSubmit={onSaveProduct}>
+      <AdminModal
+        isCloseDisabled={isSaving}
+        isOpen={isEditorOpen}
+        onClose={onCloseEditor}
+        title={editingProductId ? 'Редактор товара' : 'Новый товар'}
+      >
+          <form
+            className="admin-form"
+            id={productEditorFormId}
+            onSubmit={onSaveProduct}
+          >
             <div className="admin-grid admin-grid--two">
-              <AdminField label="Slug">
-                <input className="admin-input" name="slug" onChange={onChangeProductForm} value={productForm.slug} />
-              </AdminField>
               <AdminField label="Название">
-                <input className="admin-input" name="name" onChange={onChangeProductForm} value={productForm.name} />
+                <input className="admin-input" name="name" onChange={onChangeProductForm} required value={productForm.name} />
               </AdminField>
               <AdminField label="Фактура">
-                <input className="admin-input" name="texture" onChange={onChangeProductForm} value={productForm.texture} />
+                <input className="admin-input" name="texture" onChange={onChangeProductForm} required value={productForm.texture} />
               </AdminField>
               <AdminField label="Статус">
-                <input
-                  className="admin-input"
-                  name="availabilityStatus"
-                  onChange={onChangeProductForm}
-                  value={productForm.availabilityStatus}
-                />
+                <div className="admin-radio-group">
+                  {availabilityChoices.map((status) => (
+                    <label className="admin-radio" key={status}>
+                      <input
+                        checked={productForm.availabilityStatus === status}
+                        name="availabilityStatus"
+                        onChange={onChangeProductForm}
+                        type="radio"
+                        value={status}
+                      />
+                      <span>{status}</span>
+                    </label>
+                  ))}
+                </div>
               </AdminField>
               <AdminField label="Цвет кирпича">
                 <input
                   className="admin-input"
                   name="brickColor"
                   onChange={onChangeProductForm}
+                  required
                   value={productForm.brickColor}
                 />
               </AdminField>
@@ -1649,11 +2205,12 @@ function ProductsPanel({
                   className="admin-input"
                   name="jointColor"
                   onChange={onChangeProductForm}
+                  required
                   value={productForm.jointColor}
                 />
               </AdminField>
               <AdminField label="Толщина">
-                <input className="admin-input" name="thickness" onChange={onChangeProductForm} value={productForm.thickness} />
+                <input className="admin-input" name="thickness" onChange={onChangeProductForm} required value={productForm.thickness} />
               </AdminField>
               <AdminField label="Площадь панели">
                 <input
@@ -1661,6 +2218,7 @@ function ProductsPanel({
                   min="0.01"
                   name="panelArea"
                   onChange={onChangeProductForm}
+                  required
                   step="0.01"
                   type="number"
                   value={productForm.panelArea}
@@ -1672,6 +2230,7 @@ function ProductsPanel({
                   min="0"
                   name="priceCurrent"
                   onChange={onChangeProductForm}
+                  required
                   step="0.01"
                   type="number"
                   value={productForm.priceCurrent}
@@ -1690,20 +2249,12 @@ function ProductsPanel({
               </AdminField>
             </div>
 
-            <AdminField label="Краткое описание">
-              <textarea
-                className="admin-textarea admin-textarea--compact"
-                name="shortDescription"
-                onChange={onChangeProductForm}
-                value={productForm.shortDescription}
-              />
-            </AdminField>
-
-            <AdminField label="Полное описание">
+            <AdminField label="Описание товара">
               <textarea
                 className="admin-textarea"
                 name="fullDescription"
                 onChange={onChangeProductForm}
+                required
                 value={productForm.fullDescription}
               />
             </AdminField>
@@ -1717,26 +2268,9 @@ function ProductsPanel({
               />
               <span>Скрыть товар из публичного каталога</span>
             </label>
-
-            <div className="admin-form__actions">
-              <button className="admin-button" disabled={isSaving} type="submit">
-                {editingProductId ? 'Сохранить товар' : 'Создать товар'}
-              </button>
-              <button
-                className="admin-button admin-button--ghost"
-                disabled={isSaving}
-                onClick={onResetProductForm}
-                type="button"
-              >
-                Сбросить
-              </button>
-            </div>
           </form>
 
           <div className="admin-divider" />
-          <div className="admin-inline-note">
-            Можно загрузить файл на сервер или вручную указать готовый путь к изображению.
-          </div>
 
           {currentProduct ? (
             <>
@@ -1748,78 +2282,73 @@ function ProductsPanel({
                     изображений. Сейчас на сайте используются service-fallback материалы.
                   </div>
                 ) : null}
-                <div className="admin-mini-list">
-                  {currentProduct.gallery.map((image) => (
-                    <div className="admin-mini-card" key={image.id}>
-                      <img
-                        alt={image.alt}
-                        className="admin-mini-card__image"
-                        src={image.image}
-                      />
-                      <div className="admin-mini-card__content">
-                        <strong>{image.kind}</strong>
-                        <p>{image.alt}</p>
-                        {isFallbackAssetPath(image.image) ? (
-                          <span className="admin-chip admin-chip--warning">
-                            Временный media-fallback
-                          </span>
-                        ) : null}
-                      </div>
-                      <button
-                        className="admin-button admin-button--danger"
-                        onClick={() => onDeleteImage(currentProduct.id, image.id)}
-                        type="button"
+                {currentProduct.gallery.length > 0 ? (
+                  <div className="admin-product-gallery">
+                    {currentProduct.gallery.map((image) => (
+                      <div
+                        className={`admin-product-gallery__item${draggedImageId === image.id ? ' admin-product-gallery__item--dragging' : ''}${dragOverImageId === image.id ? ' admin-product-gallery__item--drag-target' : ''}`}
+                        draggable={!isSaving}
+                        key={image.id}
+                        onDragEnd={handleImageDragEnd}
+                        onDragOver={(event) => handleImageDragOver(event, image.id)}
+                        onDragStart={(event) =>
+                          handleImageDragStart(event, image.id)
+                        }
+                        onDrop={(event) => handleImageDrop(event, image.id)}
                       >
-                        Удалить
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                        <button
+                          aria-label={`Открыть фото: ${image.alt}`}
+                          className="admin-product-gallery__thumb"
+                          onClick={() => setPreviewImage(image)}
+                          type="button"
+                        >
+                          <img
+                            alt={image.alt}
+                            className="admin-product-gallery__image"
+                            draggable={false}
+                            src={image.image}
+                          />
+                        </button>
+                        <div className="admin-product-gallery__tools">
+                          <span className="admin-drag-handle" aria-hidden="true">
+                            ⇅
+                          </span>
+                          <button
+                            className="admin-button admin-button--danger"
+                            disabled={isSaving}
+                            onClick={() => onDeleteImage(currentProduct.id, image.id)}
+                            type="button"
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="admin-inline-note">
+                    У товара пока нет фотографий. Загрузите первую картинку ниже.
+                  </div>
+                )}
               </div>
 
-              <form className="admin-form admin-form--compact" onSubmit={onSaveImage}>
-                <div className="admin-grid admin-grid--two">
-                  <AdminField label="Файл изображения">
-                    <input
-                      accept="image/*"
-                      className="admin-input"
-                      onChange={onSelectImageFile}
-                      ref={productImageInputRef}
-                      type="file"
-                    />
-                  </AdminField>
-                  <AdminField label="Путь к изображению">
-                    <input className="admin-input" name="image" onChange={onChangeImageForm} value={imageForm.image} />
-                  </AdminField>
-                  <AdminField label="Тип изображения">
-                    <input className="admin-input" name="kind" onChange={onChangeImageForm} value={imageForm.kind} />
-                  </AdminField>
-                  <AdminField label="Alt">
-                    <input className="admin-input" name="alt" onChange={onChangeImageForm} value={imageForm.alt} />
-                  </AdminField>
-                  <AdminField label="Порядок">
-                    <input className="admin-input" name="sortOrder" onChange={onChangeImageForm} type="number" value={imageForm.sortOrder} />
-                  </AdminField>
-                </div>
-                {imageUploadName ? (
-                  <div className="admin-upload-note">Выбран файл: {imageUploadName}</div>
-                ) : null}
-                {imageForm.image ? (
-                  <img
-                    alt="Предпросмотр загружаемого изображения"
-                    className="admin-form__preview"
-                    src={imageForm.image}
-                  />
-                ) : null}
-                <AdminField label="Подпись">
-                  <input className="admin-input" name="note" onChange={onChangeImageForm} value={imageForm.note} />
-                </AdminField>
-                <div className="admin-form__actions">
-                  <button className="admin-button" disabled={isSaving} type="submit">
-                    Добавить фото
-                  </button>
-                </div>
-              </form>
+              <input
+                accept="image/*"
+                className="admin-hidden-file-input"
+                onChange={onSelectImageFile}
+                ref={productImageInputRef}
+                type="file"
+              />
+              <div className="admin-form__actions">
+                <button
+                  className="admin-button"
+                  disabled={isSaving}
+                  onClick={() => productImageInputRef.current?.click()}
+                  type="button"
+                >
+                  {isSaving ? 'Загружаем фото...' : 'Добавить фото'}
+                </button>
+              </div>
             </>
           ) : (
             <div className="admin-inline-note">
@@ -1827,143 +2356,237 @@ function ProductsPanel({
               галереей.
             </div>
           )}
-        </div>
-      </div>
+
+          <div className="admin-divider" />
+
+          <div className="admin-form__actions admin-form__actions--sticky-bottom">
+            <button
+              className="admin-button"
+              disabled={isSaving}
+              form={productEditorFormId}
+              type="submit"
+            >
+              {editingProductId ? 'Сохранить товар' : 'Создать товар'}
+            </button>
+            <button
+              className="admin-button admin-button--ghost"
+              disabled={isSaving}
+              onClick={onResetProductForm}
+              type="button"
+            >
+              Сбросить
+            </button>
+          </div>
+      </AdminModal>
+
+      <AdminModal
+        isOpen={Boolean(activePreviewImage)}
+        onClose={() => setPreviewImage(null)}
+        title="Просмотр фото"
+      >
+        {activePreviewImage ? (
+          <img
+            alt={activePreviewImage.alt}
+            className="admin-image-preview"
+            draggable={false}
+            src={activePreviewImage.image}
+          />
+        ) : null}
+      </AdminModal>
     </div>
   )
 }
 
 function ShowcasePanel({
   editingShowcaseId,
+  isEditorOpen,
   isSaving,
-  onChangeShowcaseForm,
+  onCloseEditor,
   onDeleteShowcase,
   onEditShowcase,
+  onReorderShowcase,
   onSelectShowcaseImageFile,
   onResetShowcaseForm,
   onSaveShowcase,
   showcaseImageInputRef,
+  showcasePreviewUrl,
   showcaseUploadName,
   showcaseForm,
   showcaseObjects,
 }) {
+  const [draggedShowcaseId, setDraggedShowcaseId] = useState(null)
+  const [dragOverShowcaseId, setDragOverShowcaseId] = useState(null)
+  const draggedShowcaseIdRef = useRef(null)
+
+  const handleShowcaseDragStart = (event, showcaseId) => {
+    if (isSaving) {
+      event.preventDefault()
+      return
+    }
+
+    draggedShowcaseIdRef.current = showcaseId
+    setDraggedShowcaseId(showcaseId)
+    setDragOverShowcaseId(null)
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(showcaseId))
+  }
+
+  const handleShowcaseDragOver = (event, showcaseId) => {
+    if (isSaving || draggedShowcaseId === showcaseId) {
+      return
+    }
+
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    setDragOverShowcaseId(showcaseId)
+  }
+
+  const handleShowcaseDrop = (event, targetShowcaseId) => {
+    event.preventDefault()
+    const transferShowcaseId = Number(event.dataTransfer.getData('text/plain'))
+    const sourceShowcaseId = Number.isInteger(draggedShowcaseIdRef.current)
+      ? draggedShowcaseIdRef.current
+      : transferShowcaseId
+
+    draggedShowcaseIdRef.current = null
+    setDraggedShowcaseId(null)
+    setDragOverShowcaseId(null)
+
+    if (
+      !Number.isInteger(sourceShowcaseId) ||
+      sourceShowcaseId === targetShowcaseId
+    ) {
+      return
+    }
+
+    onReorderShowcase(sourceShowcaseId, targetShowcaseId)
+  }
+
+  const handleShowcaseDragEnd = () => {
+    draggedShowcaseIdRef.current = null
+    setDraggedShowcaseId(null)
+    setDragOverShowcaseId(null)
+  }
+
   return (
     <div className="admin-section">
-      <div className="admin-section__split">
-        <div className="admin-panel">
-          <div className="admin-panel__header">
-            <div>
-              <h2 className="admin-panel__title">Объекты</h2>
-              <p className="admin-panel__lead">
-                Публикация примеров домов и управление видимостью в публичной части.
-              </p>
-            </div>
-            <button className="admin-button admin-button--ghost" onClick={onResetShowcaseForm} type="button">
-              Новый объект
-            </button>
+      <div className="admin-panel admin-panel--single">
+        <div className="admin-panel__header">
+          <div>
+            <h2 className="admin-panel__title">Объекты</h2>
+            <p className="admin-panel__lead">
+              Управление фотографиями объектов и порядком показа на сайте.
+            </p>
           </div>
-
-          <div className="admin-card-list">
-            {showcaseObjects.map((item) => (
-              <article className="admin-card" key={item.id}>
-                <div className="admin-card__body">
-                  {getShowcaseMaterialGapCount(item) > 0 ? (
-                    <div className="admin-inline-note admin-inline-note--compact admin-inline-note--warning">
-                      Нужна реальная обложка объекта
-                    </div>
-                  ) : null}
-                  {item.coverImagePath ? (
-                    <img
-                      alt={item.title}
-                      className="admin-card__preview"
-                      src={item.coverImagePath}
-                    />
-                  ) : null}
-                  <div className="admin-card__meta-row">
-                    <span className="admin-chip">{item.texture}</span>
-                    {getShowcaseMaterialGapCount(item) > 0 ? (
-                      <span className="admin-chip admin-chip--warning">
-                        Media-gap
-                      </span>
-                    ) : null}
-                    <span className={`admin-chip${item.isPublished ? '' : ' admin-chip--warning'}`}>
-                      {item.isPublished ? 'Опубликован' : 'Скрыт'}
-                    </span>
-                  </div>
-                  <h3 className="admin-card__title">{item.title}</h3>
-                  <p className="admin-card__text">{item.description}</p>
-                </div>
-                <div className="admin-card__actions">
-                  <button className="admin-button admin-button--ghost" onClick={() => onEditShowcase(item)} type="button">
-                    Редактировать
-                  </button>
-                  <button className="admin-button admin-button--danger" onClick={() => onDeleteShowcase(item.id)} type="button">
-                    Удалить
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
+          <button
+            className="admin-button admin-button--ghost"
+            disabled={isSaving}
+            onClick={onResetShowcaseForm}
+            type="button"
+          >
+            Добавить фото
+          </button>
         </div>
 
-        <div className="admin-panel admin-panel--sticky">
-          <div className="admin-panel__header">
-            <div>
-              <h2 className="admin-panel__title">
-                {editingShowcaseId ? 'Редактор объекта' : 'Новый объект'}
-              </h2>
-            </div>
-          </div>
+        <div className="admin-showcase-gallery">
+          {showcaseObjects.map((item) => (
+            <article
+              className={`admin-showcase-gallery__item${
+                draggedShowcaseId === item.id
+                  ? ' admin-showcase-gallery__item--dragging'
+                  : ''
+              }${
+                dragOverShowcaseId === item.id
+                  ? ' admin-showcase-gallery__item--drag-target'
+                  : ''
+              }`}
+              draggable={!isSaving}
+              key={item.id}
+              onDragEnd={handleShowcaseDragEnd}
+              onDragOver={(event) => handleShowcaseDragOver(event, item.id)}
+              onDragStart={(event) => handleShowcaseDragStart(event, item.id)}
+              onDrop={(event) => handleShowcaseDrop(event, item.id)}
+            >
+              <div className="admin-showcase-gallery__thumb">
+                {item.coverImagePath ? (
+                  <img
+                    alt={item.title}
+                    className="admin-showcase-gallery__image"
+                    draggable={false}
+                    src={item.coverImagePath}
+                  />
+                ) : null}
+              </div>
+              <div className="admin-showcase-gallery__tools">
+                <span className="admin-drag-handle" aria-hidden="true">
+                  ⇅
+                </span>
+                {getShowcaseMaterialGapCount(item) > 0 ? (
+                  <span className="admin-chip admin-chip--warning">Нужно фото</span>
+                ) : null}
+                <button
+                  className="admin-button admin-button--ghost"
+                  disabled={isSaving}
+                  onClick={() => onEditShowcase(item)}
+                  type="button"
+                >
+                  Заменить
+                </button>
+                <button
+                  className="admin-button admin-button--danger"
+                  disabled={isSaving}
+                  onClick={() => onDeleteShowcase(item.id)}
+                  type="button"
+                >
+                  Удалить
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
 
+      <AdminModal
+        isCloseDisabled={isSaving}
+        isOpen={isEditorOpen}
+        onClose={onCloseEditor}
+        title={editingShowcaseId ? 'Заменить фото' : 'Добавить фото'}
+      >
           <form className="admin-form" onSubmit={onSaveShowcase}>
-            <AdminField label="Название объекта">
-              <input className="admin-input" name="title" onChange={onChangeShowcaseForm} value={showcaseForm.title} />
+            <AdminField label="Фото">
+              <input
+                accept="image/*"
+                className="admin-input admin-file-input"
+                onChange={onSelectShowcaseImageFile}
+                ref={showcaseImageInputRef}
+                type="file"
+              />
             </AdminField>
-            <div className="admin-grid admin-grid--two">
-              <AdminField label="Фактура">
-                <input className="admin-input" name="texture" onChange={onChangeShowcaseForm} value={showcaseForm.texture} />
-              </AdminField>
-              <AdminField label="Цвет">
-                <input className="admin-input" name="color" onChange={onChangeShowcaseForm} value={showcaseForm.color} />
-              </AdminField>
-              <AdminField label="Файл обложки">
-                <input
-                  accept="image/*"
-                  className="admin-input"
-                  onChange={onSelectShowcaseImageFile}
-                  ref={showcaseImageInputRef}
-                  type="file"
-                />
-              </AdminField>
-              <AdminField label="Путь к обложке">
-                <input className="admin-input" name="coverImagePath" onChange={onChangeShowcaseForm} value={showcaseForm.coverImagePath} />
-              </AdminField>
-            </div>
             {showcaseUploadName ? (
               <div className="admin-upload-note">Выбран файл: {showcaseUploadName}</div>
             ) : null}
-            {showcaseForm.coverImagePath ? (
+            {showcasePreviewUrl || showcaseForm.coverImagePath ? (
               <img
                 alt="Предпросмотр обложки объекта"
                 className="admin-form__preview"
-                src={showcaseForm.coverImagePath}
+                src={showcasePreviewUrl || showcaseForm.coverImagePath}
               />
             ) : null}
-            <AdminField label="Описание">
-              <textarea className="admin-textarea" name="description" onChange={onChangeShowcaseForm} value={showcaseForm.description} />
-            </AdminField>
-            <label className="admin-checkbox">
-              <input checked={showcaseForm.isPublished} name="isPublished" onChange={onChangeShowcaseForm} type="checkbox" />
-              <span>Показывать объект в публичной части</span>
-            </label>
-            <div className="admin-form__actions">
+            <div className="admin-form__actions admin-form__actions--sticky-bottom">
               <button className="admin-button" disabled={isSaving} type="submit">
-                {editingShowcaseId ? 'Сохранить объект' : 'Создать объект'}
+                {editingShowcaseId ? 'Сохранить фото' : 'Добавить фото'}
+              </button>
+              <button
+                className="admin-button admin-button--ghost"
+                disabled={isSaving}
+                onClick={onCloseEditor}
+                type="button"
+              >
+                Закрыть
               </button>
             </div>
           </form>
-        </div>
-      </div>
+      </AdminModal>
     </div>
   )
 }
@@ -1971,13 +2594,19 @@ function ShowcasePanel({
 function ContentPanel({
   blockDraft,
   blocks,
+  contentImageInputRef,
+  contentImagePreviewUrl,
+  contentImageUploadName,
+  isEditorOpen,
   isSaving,
   onChangeBlockDraft,
   onChangeBlockExtraData,
   onChangeBlockJson,
+  onCloseEditor,
   onResetContentDraft,
   onSaveBlock,
   onSelectBlock,
+  onSelectContentImageFile,
   onToggleBlockAdvanced,
   selectedBlockKey,
 }) {
@@ -1988,46 +2617,44 @@ function ContentPanel({
 
   return (
     <div className="admin-section">
-      <div className="admin-section__split">
-        <div className="admin-panel admin-panel--narrow">
-          <div className="admin-panel__header">
-            <div>
-              <h2 className="admin-panel__title">Контентные блоки</h2>
-              <p className="admin-panel__lead">
-                Структурированное редактирование текстов, карточек, списков и CTA.
-              </p>
-            </div>
-          </div>
-
-          <div className="admin-tab-list">
-            {blocks.map((block) => (
-              <button
-                className={`admin-tab-item${selectedBlockKey === block.blockKey ? ' admin-tab-item--active' : ''}`}
-                key={block.blockKey}
-                onClick={() => onSelectBlock(block)}
-                type="button"
-              >
-                <span>{getContentBlockEditorMeta(block.blockKey).label}</span>
-                <small>
-                  {block.title || block.blockKey}
-                  {getBlockMaterialGapCount(block) > 0 ? ' • нужны материалы' : ''}
-                </small>
-              </button>
-            ))}
+      <div className="admin-panel admin-panel--single">
+        <div className="admin-panel__header">
+          <div>
+            <h2 className="admin-panel__title">Контентные блоки</h2>
+            <p className="admin-panel__lead">
+              Структурированное редактирование текстов, карточек, списков и CTA.
+            </p>
           </div>
         </div>
 
-        <div className="admin-panel admin-panel--sticky">
-          <div className="admin-panel__header">
-            <div>
-              <h2 className="admin-panel__title">
-                {selectedBlockKey ? blockMeta.label : 'Выберите блок'}
-              </h2>
-              {selectedBlock ? (
-                <p className="admin-panel__lead">{blockMeta.description}</p>
-              ) : null}
-            </div>
-          </div>
+        <div className="admin-tab-list">
+          {blocks.map((block) => (
+            <button
+              className={`admin-tab-item${selectedBlockKey === block.blockKey ? ' admin-tab-item--active' : ''}`}
+              disabled={isSaving}
+              key={block.blockKey}
+              onClick={() => onSelectBlock(block)}
+              type="button"
+            >
+              <span>{getContentBlockEditorMeta(block.blockKey).label}</span>
+              <small>
+                {block.title || block.blockKey}
+                {getBlockMaterialGapCount(block) > 0 ? ' • нужны материалы' : ''}
+              </small>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <AdminModal
+        isCloseDisabled={isSaving}
+        isOpen={isEditorOpen && Boolean(selectedBlockKey)}
+        onClose={onCloseEditor}
+        title={selectedBlockKey ? blockMeta.label : 'Контентный блок'}
+      >
+        {selectedBlock ? (
+          <p className="admin-panel__lead">{blockMeta.description}</p>
+        ) : null}
 
           {selectedBlock && getBlockMaterialGapCount(selectedBlock) > 0 ? (
             <div className="admin-inline-note admin-inline-note--warning">
@@ -2069,8 +2696,12 @@ function ContentPanel({
                 {supportsStructuredEditor && !blockDraft.isAdvancedMode ? (
                   <StructuredContentEditor
                     blockKey={selectedBlockKey}
+                    contentImageInputRef={contentImageInputRef}
+                    contentImagePreviewUrl={contentImagePreviewUrl}
+                    contentImageUploadName={contentImageUploadName}
                     extraData={extraData}
                     onChangeExtraData={onChangeBlockExtraData}
+                    onSelectContentImageFile={onSelectContentImageFile}
                   />
                 ) : null}
 
@@ -2137,8 +2768,7 @@ function ContentPanel({
           ) : (
             <div className="admin-inline-note">Выберите блок слева, чтобы открыть редактор.</div>
           )}
-        </div>
-      </div>
+      </AdminModal>
     </div>
   )
 }
@@ -2184,14 +2814,8 @@ function ContactsPanel({
             <AdminField label="Max">
               <input className="admin-input" name="maxUrl" onChange={onChangeContactsForm} value={contactsForm.maxUrl} />
             </AdminField>
-            <AdminField label="VK">
-              <input className="admin-input" name="vkUrl" onChange={onChangeContactsForm} value={contactsForm.vkUrl} />
-            </AdminField>
             <AdminField label="Адрес">
               <input className="admin-input" name="address" onChange={onChangeContactsForm} value={contactsForm.address} />
-            </AdminField>
-            <AdminField label="График работы">
-              <input className="admin-input" name="workingHours" onChange={onChangeContactsForm} value={contactsForm.workingHours} />
             </AdminField>
           </div>
 
@@ -2226,8 +2850,15 @@ export default function AdminApp() {
   const [contactsForm, setContactsForm] = useState(createEmptyContactsForm)
   const [pendingProductImageFile, setPendingProductImageFile] = useState(null)
   const [pendingShowcaseImageFile, setPendingShowcaseImageFile] = useState(null)
+  const [pendingContentImageFile, setPendingContentImageFile] = useState(null)
+  const [isProductEditorOpen, setIsProductEditorOpen] = useState(false)
+  const [isShowcaseEditorOpen, setIsShowcaseEditorOpen] = useState(false)
+  const [isContentEditorOpen, setIsContentEditorOpen] = useState(false)
   const productImageInputRef = useRef(null)
   const showcaseImageInputRef = useRef(null)
+  const contentImageInputRef = useRef(null)
+  const pendingShowcaseImagePreviewUrl = useObjectUrl(pendingShowcaseImageFile)
+  const pendingContentImagePreviewUrl = useObjectUrl(pendingContentImageFile)
 
   useEffect(() => {
     document.documentElement.lang = 'ru'
@@ -2254,6 +2885,157 @@ export default function AdminApp() {
     }
   }
 
+  const hasUnsavedTabDraft = (tabId = activeTab) => {
+    switch (tabId) {
+      case 'products':
+        return hasProductDraftChanges({
+          editingProductId,
+          imageForm,
+          pendingProductImageFile,
+          productForm,
+          products: dashboard.products,
+        })
+      case 'showcase':
+        return hasShowcaseDraftChanges({
+          editingShowcaseId,
+          pendingShowcaseImageFile,
+          showcaseForm,
+          showcaseObjects: dashboard.showcaseObjects,
+        })
+      case 'content':
+        return hasContentDraftChanges({
+          blockDraft,
+          blocks: dashboard.siteContentBlocks,
+          pendingContentImageFile,
+          selectedBlockKey,
+        })
+      case 'contacts':
+        return hasContactsDraftChanges({
+          contacts: dashboard.contacts,
+          contactsForm,
+        })
+      default:
+        return false
+    }
+  }
+
+  const restoreProductDraftFromSaved = () => {
+    const currentProduct =
+      dashboard.products.find((item) => item.id === editingProductId) ?? null
+
+    setEditingProductId(currentProduct?.id ?? null)
+    setProductForm(
+      currentProduct ? mapProductToForm(currentProduct) : createEmptyProductForm()
+    )
+    setImageForm(createEmptyImageForm())
+    setPendingProductImageFile(null)
+    resetFileInput(productImageInputRef)
+  }
+
+  const restoreShowcaseDraftFromSaved = () => {
+    const currentShowcaseObject =
+      dashboard.showcaseObjects.find((item) => item.id === editingShowcaseId) ??
+      null
+
+    setEditingShowcaseId(currentShowcaseObject?.id ?? null)
+    setShowcaseForm(
+      currentShowcaseObject
+        ? mapShowcaseToForm(currentShowcaseObject)
+        : createEmptyShowcaseForm()
+    )
+    setPendingShowcaseImageFile(null)
+    resetFileInput(showcaseImageInputRef)
+  }
+
+  const restoreContentDraftFromSaved = () => {
+    setBlockDraft(
+      getContentDraftBaseline(selectedBlockKey, dashboard.siteContentBlocks)
+    )
+    setPendingContentImageFile(null)
+    resetFileInput(contentImageInputRef)
+  }
+
+  const restoreContactsDraftFromSaved = () => {
+    setContactsForm(mapContactsToForm(dashboard.contacts))
+  }
+
+  const restoreTabDraftFromSaved = (tabId = activeTab) => {
+    switch (tabId) {
+      case 'products':
+        restoreProductDraftFromSaved()
+        break
+      case 'showcase':
+        restoreShowcaseDraftFromSaved()
+        break
+      case 'content':
+        restoreContentDraftFromSaved()
+        break
+      case 'contacts':
+        restoreContactsDraftFromSaved()
+        break
+      default:
+        break
+    }
+  }
+
+  const closeTabEditor = (tabId = activeTab) => {
+    switch (tabId) {
+      case 'products':
+        setIsProductEditorOpen(false)
+        break
+      case 'showcase':
+        setIsShowcaseEditorOpen(false)
+        break
+      case 'content':
+        setIsContentEditorOpen(false)
+        break
+      default:
+        break
+    }
+  }
+
+  const confirmDiscardUnsavedDraft = (tabId = activeTab) => {
+    if (!hasUnsavedTabDraft(tabId)) {
+      return true
+    }
+
+    return window.confirm(
+      'Есть несохранённые изменения. Сбросить текущий черновик и продолжить?'
+    )
+  }
+
+  const handleSelectTab = (nextTabId) => {
+    if (nextTabId === activeTab) {
+      return
+    }
+
+    if (!confirmDiscardUnsavedDraft(activeTab)) {
+      return
+    }
+
+    restoreTabDraftFromSaved(activeTab)
+    closeTabEditor(activeTab)
+    setActiveTab(nextTabId)
+  }
+
+  const handleOpenPublicSite = () => {
+    if (!confirmDiscardUnsavedDraft(activeTab)) {
+      return
+    }
+
+    restoreTabDraftFromSaved(activeTab)
+    closeTabEditor(activeTab)
+    window.location.assign('/')
+  }
+
+  const handleManualLogout = () => {
+    if (!confirmDiscardUnsavedDraft(activeTab)) {
+      return
+    }
+
+    handleLogout()
+  }
+
   const handleLogout = (message) => {
     adminDashboardRequests.delete(token)
     localStorage.removeItem(ADMIN_TOKEN_KEY)
@@ -2269,8 +3051,13 @@ export default function AdminApp() {
     setContactsForm(createEmptyContactsForm())
     setPendingProductImageFile(null)
     setPendingShowcaseImageFile(null)
+    setPendingContentImageFile(null)
+    setIsProductEditorOpen(false)
+    setIsShowcaseEditorOpen(false)
+    setIsContentEditorOpen(false)
     resetFileInput(productImageInputRef)
     resetFileInput(showcaseImageInputRef)
+    resetFileInput(contentImageInputRef)
 
     if (message) {
       setFlash({ text: message, tone: 'warning' })
@@ -2349,22 +3136,6 @@ export default function AdminApp() {
 
   const stats = useMemo(
     () => ({
-      content: dashboard.siteContentBlocks.length,
-      hiddenProducts: dashboard.products.filter((item) => item.isHidden).length,
-      materialGaps:
-        dashboard.products.reduce(
-          (total, product) => total + (getProductMaterialGapCount(product) > 0 ? 1 : 0),
-          0
-        ) +
-        dashboard.showcaseObjects.reduce(
-          (total, item) => total + (getShowcaseMaterialGapCount(item) > 0 ? 1 : 0),
-          0
-        ) +
-        dashboard.siteContentBlocks.reduce(
-          (total, block) => total + (getBlockMaterialGapCount(block) > 0 ? 1 : 0),
-          0
-        ) +
-        (getContactsMaterialGapCount(dashboard.contacts) > 0 ? 1 : 0),
       products: dashboard.products.length,
       showcase: dashboard.showcaseObjects.length,
     }),
@@ -2414,9 +3185,11 @@ export default function AdminApp() {
       const exists = current.showcaseObjects.some((item) => item.id === object.id)
       return {
         ...current,
-        showcaseObjects: exists
+        showcaseObjects: sortShowcaseObjectsByDisplayOrder(
+          exists
           ? current.showcaseObjects.map((item) => (item.id === object.id ? object : item))
-          : [...current.showcaseObjects, object].sort((left, right) => left.id - right.id),
+            : [...current.showcaseObjects, object]
+        ),
       }
     })
   }
@@ -2425,33 +3198,112 @@ export default function AdminApp() {
     const { checked, name, type, value } = event.target
     setProductForm((current) => ({
       ...current,
+      ...(name === 'fullDescription'
+        ? {
+            shortDescription: value,
+          }
+        : {}),
       [name]: type === 'checkbox' ? checked : value,
     }))
   }
 
-  const handleImageFieldChange = (event) => {
-    const { name, value } = event.target
-    setImageForm((current) => ({ ...current, [name]: value }))
-  }
-
-  const handleSelectImageFile = (event) => {
+  const handleSelectImageFile = async (event) => {
     const nextFile = event.target.files?.[0] ?? null
+
+    if (!nextFile) {
+      return
+    }
+
+    if (!editingProductId) {
+      showFlash('Сначала сохраните товар.', 'warning')
+      resetFileInput(productImageInputRef)
+      return
+    }
+
     setPendingProductImageFile(nextFile)
+    setIsSaving(true)
+
+    try {
+      const currentProduct =
+        dashboard.products.find((item) => item.id === editingProductId) ?? null
+      const uploadedImage = await uploadAdminImage(
+        token,
+        'product-images',
+        nextFile
+      )
+
+      const savedImage = await createAdminProductImage(token, editingProductId, {
+        ...buildProductImageDraft({
+          gallery: currentProduct?.gallery ?? [],
+          imagePath: uploadedImage.imagePath,
+          productName: productForm.name,
+        }),
+      })
+
+      setDashboard((current) => ({
+        ...current,
+        products: current.products.map((item) =>
+          item.id === editingProductId
+            ? {
+                ...item,
+                gallery: [...item.gallery, savedImage].sort(
+                  (left, right) => left.sortOrder - right.sortOrder
+                ),
+              }
+            : item
+        ),
+      }))
+      showFlash('Фото добавлено.')
+    } catch (error) {
+      if (error.status === 401) {
+        handleLogout('Сессия истекла, войдите снова.')
+      } else {
+        showFlash(error.message, 'warning')
+      }
+    } finally {
+      setImageForm(createEmptyImageForm())
+      setPendingProductImageFile(null)
+      resetFileInput(productImageInputRef)
+      setIsSaving(false)
+    }
   }
 
   const handleResetProductForm = () => {
+    if (!confirmDiscardUnsavedDraft('products')) {
+      return
+    }
+
     setEditingProductId(null)
     setProductForm(createEmptyProductForm())
     setImageForm(createEmptyImageForm())
     setPendingProductImageFile(null)
+    setIsProductEditorOpen(true)
     resetFileInput(productImageInputRef)
   }
 
+  const handleCloseProductEditor = () => {
+    if (!confirmDiscardUnsavedDraft('products')) {
+      return
+    }
+
+    restoreProductDraftFromSaved()
+    setIsProductEditorOpen(false)
+  }
+
   const handleEditProduct = (product) => {
+    if (product.id === editingProductId && isProductEditorOpen) {
+      return
+    }
+
+    if (!confirmDiscardUnsavedDraft('products')) {
+      return
+    }
+
     setEditingProductId(product.id)
     setProductForm(mapProductToForm(product))
     setImageForm(createEmptyImageForm())
     setPendingProductImageFile(null)
+    setIsProductEditorOpen(true)
     resetFileInput(productImageInputRef)
   }
 
@@ -2475,6 +3327,7 @@ export default function AdminApp() {
       replaceProduct(savedProduct)
       setEditingProductId(savedProduct.id)
       setProductForm(mapProductToForm(savedProduct))
+      setIsProductEditorOpen(false)
       showFlash(editingProductId ? 'Товар обновлён.' : 'Товар создан.')
     } catch (error) {
       if (error.status === 401) {
@@ -2502,71 +3355,15 @@ export default function AdminApp() {
       }))
 
       if (editingProductId === productId) {
-        handleResetProductForm()
+        setEditingProductId(null)
+        setProductForm(createEmptyProductForm())
+        setImageForm(createEmptyImageForm())
+        setPendingProductImageFile(null)
+        setIsProductEditorOpen(false)
+        resetFileInput(productImageInputRef)
       }
 
       showFlash('Товар удалён.')
-    } catch (error) {
-      if (error.status === 401) {
-        handleLogout('Сессия истекла, войдите снова.')
-      } else {
-        showFlash(error.message, 'warning')
-      }
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const handleSaveImage = async (event) => {
-    event.preventDefault()
-
-    if (!editingProductId) {
-      showFlash('Сначала сохраните товар.', 'warning')
-      return
-    }
-
-    if (!pendingProductImageFile && !normalizeOptionalText(imageForm.image)) {
-      showFlash('Выберите файл изображения или укажите путь вручную.', 'warning')
-      return
-    }
-
-    setIsSaving(true)
-
-    try {
-      let imagePath = normalizeOptionalText(imageForm.image)
-
-      if (pendingProductImageFile) {
-        const uploadedImage = await uploadAdminImage(
-          token,
-          'product-images',
-          pendingProductImageFile
-        )
-        imagePath = uploadedImage.imagePath
-      }
-
-      const savedImage = await createAdminProductImage(token, editingProductId, {
-        ...imageForm,
-        image: imagePath,
-        sortOrder: Number(imageForm.sortOrder),
-      })
-
-      setDashboard((current) => ({
-        ...current,
-        products: current.products.map((item) =>
-          item.id === editingProductId
-            ? {
-                ...item,
-                gallery: [...item.gallery, savedImage].sort(
-                  (left, right) => left.sortOrder - right.sortOrder
-                ),
-              }
-            : item
-        ),
-      }))
-      setImageForm(createEmptyImageForm())
-      setPendingProductImageFile(null)
-      resetFileInput(productImageInputRef)
-      showFlash('Фото добавлено.')
     } catch (error) {
       if (error.status === 401) {
         handleLogout('Сессия истекла, войдите снова.')
@@ -2610,12 +3407,58 @@ export default function AdminApp() {
     }
   }
 
-  const handleShowcaseFieldChange = (event) => {
-    const { checked, name, type, value } = event.target
-    setShowcaseForm((current) => ({
-      ...current,
-      [name]: type === 'checkbox' ? checked : value,
-    }))
+  const handleReorderProductImages = async (
+    productId,
+    sourceImageId,
+    targetImageId
+  ) => {
+    if (isSaving || sourceImageId === targetImageId) {
+      return
+    }
+
+    const product = dashboard.products.find((item) => item.id === productId)
+
+    if (!product) {
+      return
+    }
+
+    const sourceIndex = product.gallery.findIndex(
+      (image) => image.id === sourceImageId
+    )
+    const targetIndex = product.gallery.findIndex(
+      (image) => image.id === targetImageId
+    )
+
+    if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
+      return
+    }
+
+    const reorderedGallery = moveArrayItem(
+      product.gallery,
+      sourceIndex,
+      targetIndex
+    )
+
+    setIsSaving(true)
+
+    try {
+      const updatedProduct = await reorderAdminProductImages(
+        token,
+        productId,
+        reorderedGallery.map((image) => image.id)
+      )
+
+      replaceProduct(updatedProduct)
+      showFlash('Порядок фотографий обновлён.')
+    } catch (error) {
+      if (error.status === 401) {
+        handleLogout('Сессия истекла, войдите снова.')
+      } else {
+        showFlash(error.message, 'warning')
+      }
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleSelectShowcaseImageFile = (event) => {
@@ -2624,16 +3467,39 @@ export default function AdminApp() {
   }
 
   const handleResetShowcaseForm = () => {
+    if (!confirmDiscardUnsavedDraft('showcase')) {
+      return
+    }
+
     setEditingShowcaseId(null)
     setShowcaseForm(createEmptyShowcaseForm())
     setPendingShowcaseImageFile(null)
+    setIsShowcaseEditorOpen(true)
     resetFileInput(showcaseImageInputRef)
   }
 
+  const handleCloseShowcaseEditor = () => {
+    if (!confirmDiscardUnsavedDraft('showcase')) {
+      return
+    }
+
+    restoreShowcaseDraftFromSaved()
+    setIsShowcaseEditorOpen(false)
+  }
+
   const handleEditShowcase = (item) => {
+    if (item.id === editingShowcaseId && isShowcaseEditorOpen) {
+      return
+    }
+
+    if (!confirmDiscardUnsavedDraft('showcase')) {
+      return
+    }
+
     setEditingShowcaseId(item.id)
     setShowcaseForm(mapShowcaseToForm(item))
     setPendingShowcaseImageFile(null)
+    setIsShowcaseEditorOpen(true)
     resetFileInput(showcaseImageInputRef)
   }
 
@@ -2644,7 +3510,7 @@ export default function AdminApp() {
       !pendingShowcaseImageFile &&
       !normalizeOptionalText(showcaseForm.coverImagePath)
     ) {
-      showFlash('Выберите файл обложки или укажите путь вручную.', 'warning')
+      showFlash('Выберите фото объекта.', 'warning')
       return
     }
 
@@ -2663,8 +3529,11 @@ export default function AdminApp() {
       }
 
       const payload = {
-        ...showcaseForm,
-        coverImagePath,
+        ...buildShowcaseObjectDraft({
+          coverImagePath,
+          fallbackIndex: dashboard.showcaseObjects.length,
+          showcaseForm,
+        }),
       }
 
       const savedObject = editingShowcaseId
@@ -2675,8 +3544,58 @@ export default function AdminApp() {
       setEditingShowcaseId(savedObject.id)
       setShowcaseForm(mapShowcaseToForm(savedObject))
       setPendingShowcaseImageFile(null)
+      setIsShowcaseEditorOpen(false)
       resetFileInput(showcaseImageInputRef)
       showFlash(editingShowcaseId ? 'Объект обновлён.' : 'Объект создан.')
+    } catch (error) {
+      if (error.status === 401) {
+        handleLogout('Сессия истекла, войдите снова.')
+      } else {
+        showFlash(error.message, 'warning')
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleReorderShowcaseObjects = async (
+    sourceShowcaseId,
+    targetShowcaseId
+  ) => {
+    if (isSaving || sourceShowcaseId === targetShowcaseId) {
+      return
+    }
+
+    const sourceIndex = dashboard.showcaseObjects.findIndex(
+      (item) => item.id === sourceShowcaseId
+    )
+    const targetIndex = dashboard.showcaseObjects.findIndex(
+      (item) => item.id === targetShowcaseId
+    )
+
+    if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
+      return
+    }
+
+    const reorderedObjects = moveArrayItem(
+      dashboard.showcaseObjects,
+      sourceIndex,
+      targetIndex
+    )
+
+    setIsSaving(true)
+
+    try {
+      const result = await reorderAdminShowcaseObjects(
+        token,
+        reorderedObjects.map((item) => item.id)
+      )
+
+      setDashboard((current) => ({
+        ...current,
+        showcaseObjects: sortShowcaseObjectsByDisplayOrder(result.items),
+      }))
+      showFlash('Порядок фото объектов обновлён.')
     } catch (error) {
       if (error.status === 401) {
         handleLogout('Сессия истекла, войдите снова.')
@@ -2703,7 +3622,11 @@ export default function AdminApp() {
       }))
 
       if (editingShowcaseId === showcaseId) {
-        handleResetShowcaseForm()
+        setEditingShowcaseId(null)
+        setShowcaseForm(createEmptyShowcaseForm())
+        setPendingShowcaseImageFile(null)
+        setIsShowcaseEditorOpen(false)
+        resetFileInput(showcaseImageInputRef)
       }
 
       showFlash('Объект удалён.')
@@ -2719,13 +3642,38 @@ export default function AdminApp() {
   }
 
   const handleSelectBlock = (block) => {
+    if (block.blockKey === selectedBlockKey && isContentEditorOpen) {
+      return
+    }
+
+    if (!confirmDiscardUnsavedDraft('content')) {
+      return
+    }
+
     setSelectedBlockKey(block.blockKey)
     setBlockDraft(mapBlockToDraft(block))
+    setPendingContentImageFile(null)
+    setIsContentEditorOpen(true)
+    resetFileInput(contentImageInputRef)
+  }
+
+  const handleCloseContentEditor = () => {
+    if (!confirmDiscardUnsavedDraft('content')) {
+      return
+    }
+
+    restoreContentDraftFromSaved()
+    setIsContentEditorOpen(false)
   }
 
   const handleBlockDraftChange = (event) => {
     const { name, value } = event.target
     setBlockDraft((current) => ({ ...current, [name]: value }))
+  }
+
+  const handleSelectContentImageFile = (event) => {
+    const nextFile = event.target.files?.[0] ?? null
+    setPendingContentImageFile(nextFile)
   }
 
   const handleBlockExtraDataChange = (nextValueOrUpdater) => {
@@ -2799,11 +3747,23 @@ export default function AdminApp() {
     const block = dashboard.siteContentBlocks.find((item) => item.blockKey === selectedBlockKey)
     if (block) {
       setBlockDraft(mapBlockToDraft(block))
+      setPendingContentImageFile(null)
+      resetFileInput(contentImageInputRef)
     }
   }
 
   const handleSaveBlock = async (event) => {
     event.preventDefault()
+    const ctaLinkValidationError = validateOptionalContentHrefField(
+      blockDraft.ctaLink,
+      'Ссылка CTA'
+    )
+
+    if (ctaLinkValidationError) {
+      showFlash(ctaLinkValidationError, 'warning')
+      return
+    }
+
     setIsSaving(true)
 
     try {
@@ -2824,6 +3784,17 @@ export default function AdminApp() {
         return
       }
 
+      const contentImageFieldName = getContentImageFieldName(blockDraft.blockKey)
+
+      if (pendingContentImageFile && contentImageFieldName) {
+        const uploadedImage = await uploadAdminImage(
+          token,
+          'content-images',
+          pendingContentImageFile
+        )
+        extraData[contentImageFieldName] = uploadedImage.imagePath
+      }
+
       const payload = {
         title: blockDraft.title,
         subtitle: blockDraft.subtitle,
@@ -2842,6 +3813,9 @@ export default function AdminApp() {
         ),
       }))
       setBlockDraft(mapBlockToDraft(savedBlock))
+      setPendingContentImageFile(null)
+      setIsContentEditorOpen(false)
+      resetFileInput(contentImageInputRef)
       showFlash(`Блок ${savedBlock.blockKey} обновлён.`)
     } catch (error) {
       if (error instanceof SyntaxError) {
@@ -2851,6 +3825,12 @@ export default function AdminApp() {
             'JSON содержит ошибку. Проверьте запятые, кавычки и фигурные скобки.',
         }))
         showFlash('extraData должно быть валидным JSON.', 'warning')
+      } else if (error.status === 400 && blockDraft.isAdvancedMode) {
+        setBlockDraft((current) => ({
+          ...current,
+          extraDataError: error.message,
+        }))
+        showFlash(error.message, 'warning')
       } else if (error.status === 401) {
         handleLogout('Сессия истекла, войдите снова.')
       } else {
@@ -2868,6 +3848,13 @@ export default function AdminApp() {
 
   const handleSaveContacts = async (event) => {
     event.preventDefault()
+    const validationError = validateContactsForm(contactsForm)
+
+    if (validationError) {
+      showFlash(validationError, 'warning')
+      return
+    }
+
     setIsSaving(true)
 
     try {
@@ -2924,14 +3911,23 @@ export default function AdminApp() {
     <div className="admin-shell">
       <header className="admin-topbar">
         <div>
-          <p className="admin-topbar__eyebrow">Backend + PostgreSQL</p>
           <h1 className="admin-topbar__title">Управление сайтом Thermal Panels</h1>
         </div>
         <div className="admin-topbar__actions">
-          <button className="admin-button admin-button--ghost" onClick={() => window.location.assign('/')} type="button">
+          <button
+            className="admin-button admin-button--ghost"
+            disabled={isSaving}
+            onClick={handleOpenPublicSite}
+            type="button"
+          >
             На сайт
           </button>
-          <button className="admin-button admin-button--danger" onClick={() => handleLogout()} type="button">
+          <button
+            className="admin-button admin-button--danger"
+            disabled={isSaving}
+            onClick={handleManualLogout}
+            type="button"
+          >
             Выйти
           </button>
         </div>
@@ -2942,34 +3938,23 @@ export default function AdminApp() {
           <div className="admin-sidebar__stats">
             <div className="admin-stat"><strong>{stats.products}</strong><span>товаров</span></div>
             <div className="admin-stat"><strong>{stats.showcase}</strong><span>объектов</span></div>
-            <div className="admin-stat"><strong>{stats.content}</strong><span>блоков</span></div>
-            <div className="admin-stat"><strong>{stats.hiddenProducts}</strong><span>скрыто</span></div>
-            <div className="admin-stat"><strong>{stats.materialGaps}</strong><span>media-gap</span></div>
           </div>
 
           <nav className="admin-nav" aria-label="Разделы админки">
-            {tabItems.map((item) => (
+            {tabItems
+              .filter((item) => item.id !== 'content')
+              .map((item) => (
               <button
                 className={`admin-nav__item${activeTab === item.id ? ' admin-nav__item--active' : ''}`}
+                disabled={isSaving}
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => handleSelectTab(item.id)}
                 type="button"
               >
                 {item.label}
               </button>
             ))}
           </nav>
-
-          <div className="admin-inline-note">
-            Панель работает поверх готовых `/api/admin/*` endpoints и уже умеет
-            загружать изображения в локальное серверное хранилище.
-          </div>
-          {stats.materialGaps > 0 ? (
-            <div className="admin-inline-note admin-inline-note--warning">
-              В проекте ещё есть секции и карточки с service-fallback материалами. Их можно
-              быстро найти по warning-меткам внутри товаров, объектов, контента и контактов.
-            </div>
-          ) : null}
         </aside>
 
         <section className="admin-stage">
@@ -2988,17 +3973,16 @@ export default function AdminApp() {
           {activeTab === 'products' ? (
             <ProductsPanel
               editingProductId={editingProductId}
-              imageForm={imageForm}
-              imageUploadName={pendingProductImageFile?.name ?? ''}
+              isEditorOpen={isProductEditorOpen}
               isSaving={isSaving}
-              onChangeImageForm={handleImageFieldChange}
               onChangeProductForm={handleProductFieldChange}
+              onCloseEditor={handleCloseProductEditor}
               onDeleteImage={handleDeleteImage}
               onDeleteProduct={handleDeleteProduct}
               onEditProduct={handleEditProduct}
+              onReorderImages={handleReorderProductImages}
               onSelectImageFile={handleSelectImageFile}
               onResetProductForm={handleResetProductForm}
-              onSaveImage={handleSaveImage}
               onSaveProduct={handleSaveProduct}
               productForm={productForm}
               productImageInputRef={productImageInputRef}
@@ -3009,14 +3993,17 @@ export default function AdminApp() {
           {activeTab === 'showcase' ? (
             <ShowcasePanel
               editingShowcaseId={editingShowcaseId}
+              isEditorOpen={isShowcaseEditorOpen}
               isSaving={isSaving}
-              onChangeShowcaseForm={handleShowcaseFieldChange}
+              onCloseEditor={handleCloseShowcaseEditor}
               onDeleteShowcase={handleDeleteShowcase}
               onEditShowcase={handleEditShowcase}
+              onReorderShowcase={handleReorderShowcaseObjects}
               onSelectShowcaseImageFile={handleSelectShowcaseImageFile}
               onResetShowcaseForm={handleResetShowcaseForm}
               onSaveShowcase={handleSaveShowcase}
               showcaseImageInputRef={showcaseImageInputRef}
+              showcasePreviewUrl={pendingShowcaseImagePreviewUrl}
               showcaseUploadName={pendingShowcaseImageFile?.name ?? ''}
               showcaseForm={showcaseForm}
               showcaseObjects={dashboard.showcaseObjects}
@@ -3027,13 +4014,19 @@ export default function AdminApp() {
             <ContentPanel
               blockDraft={blockDraft}
               blocks={dashboard.siteContentBlocks}
+              contentImageInputRef={contentImageInputRef}
+              contentImagePreviewUrl={pendingContentImagePreviewUrl}
+              contentImageUploadName={pendingContentImageFile?.name ?? ''}
+              isEditorOpen={isContentEditorOpen}
               isSaving={isSaving}
               onChangeBlockDraft={handleBlockDraftChange}
               onChangeBlockExtraData={handleBlockExtraDataChange}
               onChangeBlockJson={handleBlockJsonChange}
+              onCloseEditor={handleCloseContentEditor}
               onResetContentDraft={handleResetContentDraft}
               onSaveBlock={handleSaveBlock}
               onSelectBlock={handleSelectBlock}
+              onSelectContentImageFile={handleSelectContentImageFile}
               onToggleBlockAdvanced={handleToggleBlockAdvanced}
               selectedBlockKey={selectedBlockKey}
             />

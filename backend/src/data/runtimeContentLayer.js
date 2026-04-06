@@ -173,41 +173,45 @@ function inferProductGalleryFallbackAsset(productSlug, imageKind, sortOrder) {
     productGalleryFallbackAssetsBySlug[normalizeText(productSlug).toLowerCase()] ??
     null
   const normalizedKind = normalizeText(imageKind).toLowerCase()
+  const inferredSlot =
+    normalizedKind.includes('круп') || normalizedKind.includes('close')
+      ? 'closeup'
+      : normalizedKind.includes('сбок') || normalizedKind.includes('side')
+        ? 'side'
+        : normalizedKind.includes('фасад') || normalizedKind.includes('дом')
+          ? 'facade'
+          : normalizedKind.includes('далек') ||
+              normalizedKind.includes('общий') ||
+              normalizedKind.includes('общ')
+            ? 'far'
+            : ''
 
   if (!galleryAssets) {
-    if (normalizedKind.includes('круп')) {
+    if (inferredSlot === 'closeup') {
       return publicFallbackAssets.productPanelCloseup
     }
 
-    if (normalizedKind.includes('сбок')) {
+    if (inferredSlot === 'side') {
       return publicFallbackAssets.productPanelSide
     }
 
-    if (normalizedKind.includes('фасад') || normalizedKind.includes('дом')) {
+    if (inferredSlot === 'facade') {
       return publicFallbackAssets.productHouseExample
     }
 
     return publicFallbackAssets.productPanelFar
   }
 
-  if (normalizedKind.includes('круп')) {
-    return galleryAssets.closeup
-  }
-
-  if (normalizedKind.includes('сбок')) {
-    return galleryAssets.side
-  }
-
-  if (normalizedKind.includes('фасад') || normalizedKind.includes('дом')) {
-    return galleryAssets.facade
+  if (inferredSlot && galleryAssets[inferredSlot]) {
+    return galleryAssets[inferredSlot]
   }
 
   switch (Number(sortOrder)) {
-    case 2:
+    case 1:
       return galleryAssets.closeup
-    case 3:
+    case 2:
       return galleryAssets.side
-    case 4:
+    case 3:
       return galleryAssets.facade
     default:
       return galleryAssets.far
@@ -431,6 +435,7 @@ export function normalizeSiteContentBlockForPresentation(block) {
         extraData.image,
         publicFallbackAssets.selfInstall
       )
+      extraData.videoUrl = normalizeText(extraData.videoUrl)
       break
     case 'contacts':
       extraData.channels = mergeDefaultContactChannels(extraData.channels)

@@ -1,5 +1,6 @@
 import { query, withTransaction } from '../db/pool.js'
 import { resolveProductImagePath } from '../data/runtimeContentLayer.js'
+import { deleteUploadedImageFile } from '../services/uploads/uploadService.js'
 
 const productSelectSql = `
   SELECT
@@ -225,15 +226,35 @@ export async function updateProduct(id, input) {
 }
 
 export async function deleteProduct(id) {
-  const result = await query(
-    `
-      DELETE FROM products
-      WHERE id = $1
-    `,
-    [id]
-  )
+  const result = await withTransaction(async (client) => {
+    const imagesResult = await client.query(
+      `
+        SELECT image_path
+        FROM product_images
+        WHERE product_id = $1
+      `,
+      [id]
+    )
 
-  return result.rowCount > 0
+    const deleteResult = await client.query(
+      `
+        DELETE FROM products
+        WHERE id = $1
+      `,
+      [id]
+    )
+
+    return {
+      deleted: deleteResult.rowCount > 0,
+      imagePaths: imagesResult.rows.map((row) => row.image_path),
+    }
+  })
+
+  if (result.deleted) {
+    await Promise.all(result.imagePaths.map((imagePath) => deleteUploadedImageFile(imagePath)))
+  }
+
+  return result.deleted
 }
 
 export async function addProductImage(productId, image) {
@@ -288,14 +309,46 @@ export async function addProductImage(productId, image) {
   })
 }
 
+export async function reorderProductImages(productId, imageIds) {
+  return withTransaction(async (client) => {
+    for (const [sortOrder, imageId] of imageIds.entries()) {
+      await client.query(
+        `
+          UPDATE product_images
+          SET sort_order = $3
+          WHERE product_id = $1 AND id = $2
+        `,
+        [productId, imageId, sortOrder]
+      )
+    }
+
+    const productResult = await client.query(
+      `
+        ${productSelectSql}
+        WHERE p.id = $1
+        GROUP BY p.id
+        LIMIT 1
+      `,
+      [productId]
+    )
+
+    return productResult.rows[0] ? mapProductRow(productResult.rows[0]) : null
+  })
+}
+
 export async function deleteProductImage(productId, imageId) {
   const result = await query(
     `
       DELETE FROM product_images
       WHERE id = $1 AND product_id = $2
+      RETURNING image_path
     `,
     [imageId, productId]
   )
+
+  if (result.rows[0]) {
+    await deleteUploadedImageFile(result.rows[0].image_path)
+  }
 
   return result.rowCount > 0
 }

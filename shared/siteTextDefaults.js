@@ -1,8 +1,9 @@
 export const sectionTextDefaults = {
   header: {
     brandBadge: 'TP',
+    brandLogo: '/media/content/logo.png',
     brandSubtitle: 'Утепление и облицовка фасада',
-    brandTitle: 'Thermal Panels',
+    brandTitle: 'Термо-брик',
     ctaHref: '#calculator',
     ctaLabel: 'Рассчитать стоимость',
     ctaShortLabel: 'Расчёт',
@@ -64,6 +65,15 @@ export const sectionTextDefaults = {
     introText:
       'Расскажите площадь фасада или отправьте фото дома. Подскажем по фактуре, сочетанию цвета панели и шва и дадим предварительный ориентир по стоимости.',
     title: 'Свяжитесь удобным способом',
+  },
+  location: {
+    addressHint:
+      'Откройте точку в Яндекс Картах, чтобы заранее построить маршрут и сохранить адрес.',
+    addressLabel: 'Адрес',
+    ctaLabel: 'Открыть в Яндекс Картах',
+    description: '',
+    eyebrow: '',
+    title: 'Как добраться',
   },
   footer: {
     copy: 'Thermal Panels • фасадные термопанели для утепления и облицовки дома',

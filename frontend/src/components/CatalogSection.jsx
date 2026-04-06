@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { getProductPagePath } from '../lib/seo.js'
 import { sectionTextDefaults } from '../content/siteTextDefaults.js'
 import { Section } from './Section.jsx'
 
@@ -39,6 +40,7 @@ function getProductGallery(product) {
 }
 
 export function CatalogSection({
+  activeProductSlug = '',
   contacts = null,
   ctaHref = sectionTextDefaults.catalog.ctaHref,
   ctaLabel = sectionTextDefaults.catalog.ctaLabel,
@@ -46,14 +48,32 @@ export function CatalogSection({
   error = '',
   eyebrow = '',
   isLoading = false,
+  onCloseProduct = null,
+  onOpenProduct = null,
   products,
   title = sectionTextDefaults.catalog.title,
 }) {
-  const [activeProduct, setActiveProduct] = useState(null)
-  const [activePhotoIndex, setActivePhotoIndex] = useState(0)
+  const [galleryState, setGalleryState] = useState({
+    productSlug: '',
+    photoIndex: 0,
+  })
+  const activeProduct =
+    activeProductSlug && Array.isArray(products)
+      ? products.find((product) => product.slug === activeProductSlug) ?? null
+      : null
+  const activePhotoIndex =
+    galleryState.productSlug === activeProductSlug ? galleryState.photoIndex : 0
   const activeGallery = getProductGallery(activeProduct)
   const activeImage = activeGallery[activePhotoIndex] ?? activeGallery[0]
   const phoneHref = contacts?.phoneHref ?? '#contacts'
+
+  const closeProduct = () => {
+    setGalleryState({
+      photoIndex: 0,
+      productSlug: '',
+    })
+    onCloseProduct?.()
+  }
 
   useEffect(() => {
     if (!activeProduct) {
@@ -62,7 +82,11 @@ export function CatalogSection({
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        setActiveProduct(null)
+        setGalleryState({
+          photoIndex: 0,
+          productSlug: '',
+        })
+        onCloseProduct?.()
       }
     }
 
@@ -73,12 +97,7 @@ export function CatalogSection({
       document.body.classList.remove('body--locked')
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [activeProduct])
-
-  const openProduct = (product) => {
-    setActiveProduct(product)
-    setActivePhotoIndex(0)
-  }
+  }, [activeProduct, onCloseProduct])
 
   const handleEstimateLink = (slug, shouldCloseModal = false) => {
     window.dispatchEvent(
@@ -88,21 +107,29 @@ export function CatalogSection({
     )
 
     if (shouldCloseModal) {
-      setActiveProduct(null)
+      closeProduct()
     }
   }
 
   const activeDiscount = activeProduct ? getProductDiscount(activeProduct) : null
 
-  const handleCardKeyDown = (event, product) => {
-    if (event.currentTarget !== event.target) {
+  const handleProductLinkClick = (event, slug) => {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.shiftKey
+    ) {
       return
     }
 
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      openProduct(product)
-    }
+    event.preventDefault()
+    setGalleryState({
+      photoIndex: 0,
+      productSlug: slug,
+    })
+    onOpenProduct?.(slug)
   }
 
   if (isLoading) {
@@ -163,40 +190,39 @@ export function CatalogSection({
               const primaryImage = getProductGallery(product)[0]
 
               return (
-                <article
-                  aria-label={`Открыть описание товара ${product.name}`}
-                  className="catalog-card"
-                  key={product.slug}
-                  onClick={() => openProduct(product)}
-                  onKeyDown={(event) => handleCardKeyDown(event, product)}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="catalog-card__media">
-                    <img
-                      alt={primaryImage.alt}
-                      className="catalog-card__image"
-                      src={primaryImage.image}
-                    />
-                  </div>
-
-                  <div className="catalog-card__body">
-                    <h3 className="catalog-card__title">{product.name}</h3>
-
-                    <div className="catalog-card__price">
-                      <div className="catalog-card__price-group">
-                        {discount ? (
-                          <span className="catalog-card__price-old">
-                            {formatPrice(product.priceOld)}
-                          </span>
-                        ) : null}
-                        <strong className="catalog-card__price-current">
-                          {formatPrice(product.priceCurrent)}
-                        </strong>
-                      </div>
-                      <span className="catalog-card__price-note">за м²</span>
+                <article className="catalog-card" key={product.slug}>
+                  <a
+                    aria-label={`Открыть описание товара ${product.name}`}
+                    className="catalog-card__link"
+                    href={getProductPagePath(product.slug)}
+                    onClick={(event) => handleProductLinkClick(event, product.slug)}
+                  >
+                    <div className="catalog-card__media">
+                      <img
+                        alt={primaryImage.alt}
+                        className="catalog-card__image"
+                        src={primaryImage.image}
+                      />
                     </div>
-                  </div>
+
+                    <div className="catalog-card__body">
+                      <h3 className="catalog-card__title">{product.name}</h3>
+
+                      <div className="catalog-card__price">
+                        <div className="catalog-card__price-group">
+                          {discount ? (
+                            <span className="catalog-card__price-old">
+                              {formatPrice(product.priceOld)}
+                            </span>
+                          ) : null}
+                          <strong className="catalog-card__price-current">
+                            {formatPrice(product.priceCurrent)}
+                          </strong>
+                        </div>
+                        <span className="catalog-card__price-note">за м²</span>
+                      </div>
+                    </div>
+                  </a>
                 </article>
               )
             })}
@@ -212,116 +238,127 @@ export function CatalogSection({
       </div>
 
       {activeProduct ? (
-        <div className="catalog-modal-backdrop" onClick={() => setActiveProduct(null)}>
+        <div className="catalog-modal-backdrop" onClick={closeProduct}>
           <div
-            aria-labelledby="catalog-modal-title"
-            aria-modal="true"
-            className="catalog-modal"
+            className="catalog-modal-shell"
             onClick={(event) => event.stopPropagation()}
-            role="dialog"
           >
             <button
               aria-label="Закрыть карточку товара"
               className="catalog-modal__close"
-              onClick={() => setActiveProduct(null)}
+              onClick={closeProduct}
               type="button"
             >
-              Закрыть
+              <span aria-hidden="true" className="catalog-modal__close-icon">
+                ×
+              </span>
             </button>
 
-            <div className="catalog-modal__layout">
-              <div className="catalog-modal__gallery">
-                <div className="catalog-modal__main-image-wrap">
-                  <img
-                    alt={activeImage.alt}
-                    className="catalog-modal__main-image"
-                    src={activeImage.image}
-                  />
+            <div
+              aria-labelledby="catalog-modal-title"
+              aria-modal="true"
+              className="catalog-modal"
+              role="dialog"
+            >
+              <div className="catalog-modal__layout">
+                <div className="catalog-modal__gallery">
+                  <div className="catalog-modal__main-image-wrap">
+                    <img
+                      alt={activeImage.alt}
+                      className="catalog-modal__main-image"
+                      src={activeImage.image}
+                    />
+                  </div>
+
+                  {activeGallery.length > 1 ? (
+                    <div className="catalog-modal__thumbs" aria-label="Галерея товара">
+                      {activeGallery.map((image, index) => (
+                        <button
+                          aria-label={`Показать фото: ${image.kind}`}
+                          aria-pressed={activePhotoIndex === index}
+                          className={`catalog-modal__thumb${activePhotoIndex === index ? ' catalog-modal__thumb--active' : ''}`}
+                          key={`${activeProduct.slug}-${image.kind}-${index}`}
+                          onClick={() =>
+                            setGalleryState({
+                              photoIndex: index,
+                              productSlug: activeProduct.slug,
+                            })
+                          }
+                          type="button"
+                        >
+                          <img
+                            alt={image.alt}
+                            className="catalog-modal__thumb-image"
+                            src={image.image}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
 
-                {activeGallery.length > 1 ? (
-                  <div className="catalog-modal__thumbs" aria-label="Галерея товара">
-                    {activeGallery.map((image, index) => (
-                      <button
-                        aria-label={`Показать фото: ${image.kind}`}
-                        aria-pressed={activePhotoIndex === index}
-                        className={`catalog-modal__thumb${activePhotoIndex === index ? ' catalog-modal__thumb--active' : ''}`}
-                        key={`${activeProduct.slug}-${image.kind}-${index}`}
-                        onClick={() => setActivePhotoIndex(index)}
-                        type="button"
-                      >
-                        <img
-                          alt={image.alt}
-                          className="catalog-modal__thumb-image"
-                          src={image.image}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
+                <div className="catalog-modal__content">
+                  <p className="catalog-modal__eyebrow">{activeProduct.texture}</p>
+                  <h3 className="catalog-modal__title" id="catalog-modal-title">
+                    {activeProduct.name}
+                  </h3>
+                  <p className="catalog-modal__text">{activeProduct.fullDescription}</p>
 
-              <div className="catalog-modal__content">
-                <p className="catalog-modal__eyebrow">{activeProduct.texture}</p>
-                <h3 className="catalog-modal__title" id="catalog-modal-title">
-                  {activeProduct.name}
-                </h3>
-                <p className="catalog-modal__text">{activeProduct.fullDescription}</p>
+                  <div className="catalog-modal__price">
+                    <div className="catalog-modal__price-group">
+                      {activeDiscount ? (
+                        <span className="catalog-modal__price-old">
+                          {formatPrice(activeProduct.priceOld)}
+                        </span>
+                      ) : null}
+                      <strong className="catalog-modal__price-current">
+                        {formatPrice(activeProduct.priceCurrent)}
+                      </strong>
+                      <span className="catalog-modal__price-note">за м²</span>
+                    </div>
+                    <span className="catalog-modal__status">
+                      {activeProduct.availabilityStatus}
+                    </span>
+                  </div>
 
-                <div className="catalog-modal__price">
-                  <div className="catalog-modal__price-group">
-                    {activeDiscount ? (
-                      <span className="catalog-modal__price-old">
-                        {formatPrice(activeProduct.priceOld)}
-                      </span>
-                    ) : null}
-                    <strong className="catalog-modal__price-current">
-                      {formatPrice(activeProduct.priceCurrent)}
-                    </strong>
-                    <span className="catalog-modal__price-note">за м²</span>
-                  </div>
-                  <span className="catalog-modal__status">
-                    {activeProduct.availabilityStatus}
-                  </span>
-                </div>
+                  <dl className="catalog-modal__specs">
+                    <div>
+                      <dt>Фактура</dt>
+                      <dd>{activeProduct.texture}</dd>
+                    </div>
+                    <div>
+                      <dt>Цвет кирпича</dt>
+                      <dd>{activeProduct.brickColor}</dd>
+                    </div>
+                    <div>
+                      <dt>Цвет шва</dt>
+                      <dd>{activeProduct.jointColor}</dd>
+                    </div>
+                    <div>
+                      <dt>Толщина</dt>
+                      <dd>{activeProduct.thickness}</dd>
+                    </div>
+                    <div>
+                      <dt>Площадь панели</dt>
+                      <dd>{formatArea(activeProduct.panelArea)}</dd>
+                    </div>
+                  </dl>
 
-                <dl className="catalog-modal__specs">
-                  <div>
-                    <dt>Фактура</dt>
-                    <dd>{activeProduct.texture}</dd>
+                  <div className="catalog-modal__cta">
+                    <a
+                      className="catalog-card__button"
+                      href="#calculator"
+                      onClick={() => handleEstimateLink(activeProduct.slug, true)}
+                    >
+                      Рассчитать стоимость своего дома
+                    </a>
+                    <a
+                      className="catalog-card__button catalog-card__button--ghost"
+                      href={phoneHref}
+                    >
+                      Позвонить
+                    </a>
                   </div>
-                  <div>
-                    <dt>Цвет кирпича</dt>
-                    <dd>{activeProduct.brickColor}</dd>
-                  </div>
-                  <div>
-                    <dt>Цвет шва</dt>
-                    <dd>{activeProduct.jointColor}</dd>
-                  </div>
-                  <div>
-                    <dt>Толщина</dt>
-                    <dd>{activeProduct.thickness}</dd>
-                  </div>
-                  <div>
-                    <dt>Площадь панели</dt>
-                    <dd>{formatArea(activeProduct.panelArea)}</dd>
-                  </div>
-                </dl>
-
-                <div className="catalog-modal__cta">
-                  <a
-                    className="catalog-card__button"
-                    href="#calculator"
-                    onClick={() => handleEstimateLink(activeProduct.slug, true)}
-                  >
-                    Рассчитать стоимость своего дома
-                  </a>
-                  <a
-                    className="catalog-card__button catalog-card__button--ghost"
-                    href={phoneHref}
-                  >
-                    Позвонить
-                  </a>
                 </div>
               </div>
             </div>
