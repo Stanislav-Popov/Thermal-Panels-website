@@ -15,6 +15,7 @@ export function PartnersSection({
 
   return (
     <Section
+      className="section--partners"
       description={description}
       eyebrow={eyebrow}
       id="partners"

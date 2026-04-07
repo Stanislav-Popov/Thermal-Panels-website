@@ -1,6 +1,17 @@
-export function Section({ id, eyebrow, title, description, children }) {
+export function Section({
+  id,
+  eyebrow,
+  title,
+  description,
+  children,
+  className = '',
+}) {
+  const sectionClassName = className
+    ? `section ${className}`.trim()
+    : 'section'
+
   return (
-    <section className="section" id={id}>
+    <section className={sectionClassName} id={id}>
       <div className="layout-container">
         <div className="section__intro">
           {eyebrow ? <span className="section__eyebrow">{eyebrow}</span> : null}

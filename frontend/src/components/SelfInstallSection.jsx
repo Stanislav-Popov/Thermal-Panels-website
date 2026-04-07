@@ -9,6 +9,7 @@ export function SelfInstallSection({ content }) {
 
   return (
     <Section
+      className="section--self-install"
       description={content.description ?? ''}
       eyebrow={content.eyebrow ?? ''}
       id="self-install"
