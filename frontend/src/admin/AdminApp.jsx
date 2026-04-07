@@ -41,7 +41,7 @@ const tabItems = [
 
 const productAvailabilityOptions = ['В наличии', 'Под заказ']
 const productImageKindSequence = [
-  'Фото панели издалека',
+  'Основное фото',
   'Крупный план',
   'Фото сбоку',
   'Фото дома',
@@ -384,6 +384,59 @@ function buildProductImageDraft({ gallery = [], imagePath, kind, productName }) 
   }
 }
 
+function createLocalDraftId(prefix = 'draft') {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function sortProductGallery(gallery) {
+  return [...gallery].sort((left, right) => {
+    const leftOrder = Number(left.sortOrder) || 0
+    const rightOrder = Number(right.sortOrder) || 0
+
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder
+    }
+
+    const leftId = Number(left.id) || 0
+    const rightId = Number(right.id) || 0
+
+    return leftId - rightId
+  })
+}
+
+function mergeProductGallery(product, images) {
+  return {
+    ...product,
+    gallery: sortProductGallery([...(product.gallery ?? []), ...images]),
+  }
+}
+
+function createPendingProductImages({
+  files,
+  gallery = [],
+  pendingImages = [],
+  productName,
+}) {
+  const gallerySeed = [...sortProductGallery(gallery), ...sortProductGallery(pendingImages)]
+  const createdItems = []
+
+  for (const file of files) {
+    const draft = buildProductImageDraft({
+      gallery: [...gallerySeed, ...createdItems],
+      imagePath: '',
+      productName,
+    })
+
+    createdItems.push({
+      id: createLocalDraftId('product-image'),
+      file,
+      ...draft,
+    })
+  }
+
+  return createdItems
+}
+
 function buildShowcaseObjectDraft({ coverImagePath, fallbackIndex, showcaseForm }) {
   const objectNumber = Number.isInteger(fallbackIndex) ? fallbackIndex + 1 : 1
 
@@ -580,7 +633,7 @@ function createContentDraftSnapshot(draft) {
 function hasProductDraftChanges({
   editingProductId,
   imageForm,
-  pendingProductImageFile,
+  pendingProductImages,
   productForm,
   products,
 }) {
@@ -589,7 +642,7 @@ function hasProductDraftChanges({
       stringifyFormState(getProductDraftBaseline(editingProductId, products)) ||
     stringifyFormState(imageForm) !==
       stringifyFormState(createEmptyImageForm()) ||
-    Boolean(pendingProductImageFile)
+    pendingProductImages.length > 0
   )
 }
 
@@ -760,6 +813,35 @@ function ContentImagePreview({ alt, src }) {
       className="admin-form__preview admin-form__preview--small"
       src={normalizedSrc}
     />
+  )
+}
+
+function PendingProductImageCard({ isSaving, item, onRemove }) {
+  const previewUrl = useObjectUrl(item.file)
+
+  return (
+    <div className="admin-product-gallery__item admin-product-gallery__item--pending">
+      <div className="admin-product-gallery__thumb admin-product-gallery__thumb--static">
+        {previewUrl ? (
+          <img
+            alt={item.alt}
+            className="admin-product-gallery__image"
+            draggable={false}
+            src={previewUrl}
+          />
+        ) : null}
+      </div>
+      <div className="admin-product-gallery__tools">
+        <button
+          className="admin-button admin-button--danger"
+          disabled={isSaving}
+          onClick={() => onRemove(item.id)}
+          type="button"
+        >
+          Убрать
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -1997,10 +2079,13 @@ function ProductsPanel({
   onDeleteImage,
   onDeleteProduct,
   onEditProduct,
+  onRemovePendingImage,
   onReorderImages,
   onSelectImageFile,
   onResetProductForm,
   onSaveProduct,
+  onUploadPendingImages,
+  pendingProductImages,
   productForm,
   productImageInputRef,
   products,
@@ -2276,6 +2361,10 @@ function ProductsPanel({
             <>
               <div className="admin-subsection">
                 <h3 className="admin-subsection__title">Фотографии товара</h3>
+                <div className="admin-inline-note">
+                  Можно выбрать фото заранее. Если товар новый, файлы загрузятся сразу
+                  после его создания.
+                </div>
                 {currentProductPendingMediaCount > 0 ? (
                   <div className="admin-inline-note admin-inline-note--warning">
                     Для этого товара ещё не хватает {currentProductPendingMediaCount} реальных
@@ -2330,11 +2419,28 @@ function ProductsPanel({
                     У товара пока нет фотографий. Загрузите первую картинку ниже.
                   </div>
                 )}
+
+                {pendingProductImages.length > 0 ? (
+                  <div className="admin-subsection">
+                    <h4 className="admin-subsection__title">Очередь загрузки</h4>
+                    <div className="admin-product-gallery">
+                      {pendingProductImages.map((item) => (
+                        <PendingProductImageCard
+                          isSaving={isSaving}
+                          item={item}
+                          key={item.id}
+                          onRemove={onRemovePendingImage}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <input
                 accept="image/*"
                 className="admin-hidden-file-input"
+                multiple
                 onChange={onSelectImageFile}
                 ref={productImageInputRef}
                 type="file"
@@ -2348,13 +2454,55 @@ function ProductsPanel({
                 >
                   {isSaving ? 'Загружаем фото...' : 'Добавить фото'}
                 </button>
+                {pendingProductImages.length > 0 ? (
+                  <button
+                    className="admin-button admin-button--ghost"
+                    disabled={isSaving}
+                    onClick={onUploadPendingImages}
+                    type="button"
+                  >
+                    Загрузить очередь
+                  </button>
+                ) : null}
               </div>
             </>
           ) : (
-            <div className="admin-inline-note">
-              Сначала создайте товар или откройте существующий, затем можно управлять его
-              галереей.
-            </div>
+            <>
+              {pendingProductImages.length > 0 ? (
+                <div className="admin-subsection">
+                  <h3 className="admin-subsection__title">Очередь загрузки</h3>
+                  <div className="admin-product-gallery">
+                    {pendingProductImages.map((item) => (
+                      <PendingProductImageCard
+                        isSaving={isSaving}
+                        item={item}
+                        key={item.id}
+                        onRemove={onRemovePendingImage}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <input
+                accept="image/*"
+                className="admin-hidden-file-input"
+                multiple
+                onChange={onSelectImageFile}
+                ref={productImageInputRef}
+                type="file"
+              />
+              <div className="admin-form__actions">
+                <button
+                  className="admin-button"
+                  disabled={isSaving}
+                  onClick={() => productImageInputRef.current?.click()}
+                  type="button"
+                >
+                  {isSaving ? 'Подготавливаем фото...' : 'Добавить фото'}
+                </button>
+              </div>
+            </>
           )}
 
           <div className="admin-divider" />
@@ -2848,7 +2996,7 @@ export default function AdminApp() {
   const [selectedBlockKey, setSelectedBlockKey] = useState('')
   const [blockDraft, setBlockDraft] = useState(createEmptyContentDraft)
   const [contactsForm, setContactsForm] = useState(createEmptyContactsForm)
-  const [pendingProductImageFile, setPendingProductImageFile] = useState(null)
+  const [pendingProductImages, setPendingProductImages] = useState([])
   const [pendingShowcaseImageFile, setPendingShowcaseImageFile] = useState(null)
   const [pendingContentImageFile, setPendingContentImageFile] = useState(null)
   const [isProductEditorOpen, setIsProductEditorOpen] = useState(false)
@@ -2891,7 +3039,7 @@ export default function AdminApp() {
         return hasProductDraftChanges({
           editingProductId,
           imageForm,
-          pendingProductImageFile,
+          pendingProductImages,
           productForm,
           products: dashboard.products,
         })
@@ -2928,7 +3076,7 @@ export default function AdminApp() {
       currentProduct ? mapProductToForm(currentProduct) : createEmptyProductForm()
     )
     setImageForm(createEmptyImageForm())
-    setPendingProductImageFile(null)
+    setPendingProductImages([])
     resetFileInput(productImageInputRef)
   }
 
@@ -3049,7 +3197,7 @@ export default function AdminApp() {
     setSelectedBlockKey('')
     setBlockDraft(createEmptyContentDraft())
     setContactsForm(createEmptyContactsForm())
-    setPendingProductImageFile(null)
+    setPendingProductImages([])
     setPendingShowcaseImageFile(null)
     setPendingContentImageFile(null)
     setIsProductEditorOpen(false)
@@ -3180,6 +3328,102 @@ export default function AdminApp() {
     })
   }
 
+  const uploadPendingProductImages = async ({ pendingImages, product }) => {
+    let currentProduct = product
+    const failedImages = []
+    let savedCount = 0
+
+    for (const pendingImage of pendingImages) {
+      try {
+        const uploadedImage = await uploadAdminImage(
+          token,
+          'product-images',
+          pendingImage.file
+        )
+        const imageDraft = buildProductImageDraft({
+          gallery: currentProduct.gallery ?? [],
+          imagePath: uploadedImage.imagePath,
+          kind: pendingImage.kind,
+          productName: currentProduct.name,
+        })
+        const savedImage = await createAdminProductImage(token, currentProduct.id, {
+          ...imageDraft,
+          alt: pendingImage.alt,
+          note: pendingImage.note,
+        })
+
+        currentProduct = mergeProductGallery(currentProduct, [savedImage])
+        savedCount += 1
+      } catch (error) {
+        if (error.status === 401) {
+          throw error
+        }
+
+        failedImages.push(pendingImage)
+      }
+    }
+
+    return {
+      failedImages,
+      product: currentProduct,
+      savedCount,
+    }
+  }
+
+  const handleRemovePendingProductImage = (pendingImageId) => {
+    setPendingProductImages((current) =>
+      current.filter((item) => item.id !== pendingImageId)
+    )
+  }
+
+  const handleUploadQueuedProductImages = async () => {
+    if (!editingProductId || pendingProductImages.length === 0) {
+      return
+    }
+
+    const currentProduct =
+      dashboard.products.find((item) => item.id === editingProductId) ?? null
+
+    if (!currentProduct) {
+      showFlash('Сначала откройте сохранённый товар.', 'warning')
+      return
+    }
+
+    setIsSaving(true)
+
+    try {
+      const uploadResult = await uploadPendingProductImages({
+        pendingImages: pendingProductImages,
+        product: currentProduct,
+      })
+
+      replaceProduct(uploadResult.product)
+      setProductForm(mapProductToForm(uploadResult.product))
+      setPendingProductImages(uploadResult.failedImages)
+
+      if (uploadResult.failedImages.length > 0) {
+        showFlash(
+          `Загружено ${uploadResult.savedCount} из ${pendingProductImages.length} фото. Остальные остались в очереди.`,
+          'warning'
+        )
+      } else {
+        showFlash(
+          pendingProductImages.length === 1
+            ? 'Фото из очереди загружено.'
+            : 'Очередь фотографий загружена.'
+        )
+      }
+    } catch (error) {
+      if (error.status === 401) {
+        handleLogout('Сессия истекла, войдите снова.')
+      } else {
+        showFlash(error.message, 'warning')
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const replaceShowcaseObject = (object) => {
     setDashboard((current) => {
       const exists = current.showcaseObjects.some((item) => item.id === object.id)
@@ -3208,52 +3452,62 @@ export default function AdminApp() {
   }
 
   const handleSelectImageFile = async (event) => {
-    const nextFile = event.target.files?.[0] ?? null
+    const nextFiles = Array.from(event.target.files ?? [])
 
-    if (!nextFile) {
+    if (nextFiles.length === 0) {
       return
     }
 
+    const currentProduct =
+      dashboard.products.find((item) => item.id === editingProductId) ?? null
+    const nextPendingImages = createPendingProductImages({
+      files: nextFiles,
+      gallery: currentProduct?.gallery ?? [],
+      pendingImages: pendingProductImages,
+      productName: productForm.name,
+    })
+
     if (!editingProductId) {
-      showFlash('Сначала сохраните товар.', 'warning')
+      setPendingProductImages((current) => [...current, ...nextPendingImages])
+      showFlash(
+        nextPendingImages.length === 1
+          ? 'Фото добавлено в очередь. Оно загрузится после создания товара.'
+          : `Фото добавлены в очередь: ${nextPendingImages.length}. Они загрузятся после создания товара.`
+      )
       resetFileInput(productImageInputRef)
       return
     }
 
-    setPendingProductImageFile(nextFile)
+    if (!currentProduct) {
+      showFlash('Сначала откройте сохранённый товар.', 'warning')
+      resetFileInput(productImageInputRef)
+      return
+    }
+
     setIsSaving(true)
 
     try {
-      const currentProduct =
-        dashboard.products.find((item) => item.id === editingProductId) ?? null
-      const uploadedImage = await uploadAdminImage(
-        token,
-        'product-images',
-        nextFile
-      )
-
-      const savedImage = await createAdminProductImage(token, editingProductId, {
-        ...buildProductImageDraft({
-          gallery: currentProduct?.gallery ?? [],
-          imagePath: uploadedImage.imagePath,
-          productName: productForm.name,
-        }),
+      const uploadResult = await uploadPendingProductImages({
+        pendingImages: nextPendingImages,
+        product: currentProduct,
       })
 
-      setDashboard((current) => ({
-        ...current,
-        products: current.products.map((item) =>
-          item.id === editingProductId
-            ? {
-                ...item,
-                gallery: [...item.gallery, savedImage].sort(
-                  (left, right) => left.sortOrder - right.sortOrder
-                ),
-              }
-            : item
-        ),
-      }))
-      showFlash('Фото добавлено.')
+      replaceProduct(uploadResult.product)
+      setProductForm(mapProductToForm(uploadResult.product))
+
+      if (uploadResult.failedImages.length > 0) {
+        setPendingProductImages((current) => [...current, ...uploadResult.failedImages])
+        showFlash(
+          `Загружено ${uploadResult.savedCount} из ${nextPendingImages.length} фото. Остальные остались в очереди.`,
+          'warning'
+        )
+      } else {
+        showFlash(
+          nextPendingImages.length === 1
+            ? 'Фото добавлено.'
+            : `Добавлено фотографий: ${nextPendingImages.length}.`
+        )
+      }
     } catch (error) {
       if (error.status === 401) {
         handleLogout('Сессия истекла, войдите снова.')
@@ -3262,7 +3516,6 @@ export default function AdminApp() {
       }
     } finally {
       setImageForm(createEmptyImageForm())
-      setPendingProductImageFile(null)
       resetFileInput(productImageInputRef)
       setIsSaving(false)
     }
@@ -3276,7 +3529,7 @@ export default function AdminApp() {
     setEditingProductId(null)
     setProductForm(createEmptyProductForm())
     setImageForm(createEmptyImageForm())
-    setPendingProductImageFile(null)
+    setPendingProductImages([])
     setIsProductEditorOpen(true)
     resetFileInput(productImageInputRef)
   }
@@ -3302,7 +3555,7 @@ export default function AdminApp() {
     setEditingProductId(product.id)
     setProductForm(mapProductToForm(product))
     setImageForm(createEmptyImageForm())
-    setPendingProductImageFile(null)
+    setPendingProductImages([])
     setIsProductEditorOpen(true)
     resetFileInput(productImageInputRef)
   }
@@ -3320,15 +3573,52 @@ export default function AdminApp() {
 
     try {
       const payload = normalizeProductForm(productForm)
+      const hasQueuedImages = pendingProductImages.length > 0
       const savedProduct = editingProductId
         ? await updateAdminProduct(token, editingProductId, payload)
         : await createAdminProduct(token, payload)
 
+      let nextProduct = savedProduct
+      let failedImages = pendingProductImages
+
       replaceProduct(savedProduct)
       setEditingProductId(savedProduct.id)
-      setProductForm(mapProductToForm(savedProduct))
+
+      if (hasQueuedImages) {
+        const uploadResult = await uploadPendingProductImages({
+          pendingImages: pendingProductImages,
+          product: savedProduct,
+        })
+
+        nextProduct = uploadResult.product
+        failedImages = uploadResult.failedImages
+        replaceProduct(nextProduct)
+      }
+
+      setProductForm(mapProductToForm(nextProduct))
+      setPendingProductImages(failedImages)
+
+      if (failedImages.length > 0) {
+        setIsProductEditorOpen(true)
+        showFlash(
+          editingProductId
+            ? 'Товар обновлён, но часть фото осталась в очереди.'
+            : 'Товар создан, но часть фото осталась в очереди.',
+          'warning'
+        )
+        return
+      }
+
       setIsProductEditorOpen(false)
-      showFlash(editingProductId ? 'Товар обновлён.' : 'Товар создан.')
+      showFlash(
+        hasQueuedImages
+          ? editingProductId
+            ? 'Товар обновлён, фотографии добавлены.'
+            : 'Товар создан, фотографии добавлены.'
+          : editingProductId
+            ? 'Товар обновлён.'
+            : 'Товар создан.'
+      )
     } catch (error) {
       if (error.status === 401) {
         handleLogout('Сессия истекла, войдите снова.')
@@ -3358,7 +3648,7 @@ export default function AdminApp() {
         setEditingProductId(null)
         setProductForm(createEmptyProductForm())
         setImageForm(createEmptyImageForm())
-        setPendingProductImageFile(null)
+        setPendingProductImages([])
         setIsProductEditorOpen(false)
         resetFileInput(productImageInputRef)
       }
@@ -3980,10 +4270,13 @@ export default function AdminApp() {
               onDeleteImage={handleDeleteImage}
               onDeleteProduct={handleDeleteProduct}
               onEditProduct={handleEditProduct}
+              onRemovePendingImage={handleRemovePendingProductImage}
               onReorderImages={handleReorderProductImages}
               onSelectImageFile={handleSelectImageFile}
               onResetProductForm={handleResetProductForm}
               onSaveProduct={handleSaveProduct}
+              onUploadPendingImages={handleUploadQueuedProductImages}
+              pendingProductImages={pendingProductImages}
               productForm={productForm}
               productImageInputRef={productImageInputRef}
               products={dashboard.products}

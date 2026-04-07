@@ -551,6 +551,10 @@
     transform 180ms ease;
 }
 
+.admin-product-gallery__item--pending {
+  cursor: default;
+}
+
 .admin-product-gallery__item--dragging {
   opacity: 0.7;
   cursor: grabbing;
@@ -563,6 +567,7 @@
 }
 
 .admin-product-gallery__thumb {
+  display: block;
   width: 160px;
   height: 120px;
   padding: 0;
@@ -571,6 +576,11 @@
   border-radius: 18px;
   background: transparent;
   cursor: zoom-in;
+}
+
+.admin-product-gallery__thumb--static {
+  cursor: default;
+  background: #ffffff;
 }
 
 .admin-product-gallery__image {
@@ -585,6 +595,10 @@
   display: flex;
   justify-content: space-between;
   gap: 8px;
+}
+
+.admin-product-gallery__item--pending .admin-product-gallery__tools {
+  justify-content: flex-end;
 }
 
 .admin-showcase-gallery {
