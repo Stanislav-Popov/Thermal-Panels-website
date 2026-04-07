@@ -437,7 +437,7 @@ function mergeContactChannelConfigs(configs = null) {
 }
 
 function isVisiblePublicContactChannel(channel) {
-  return readText(channel?.key, '') !== 'vk'
+  return !['max', 'vk'].includes(readText(channel?.key, ''))
 }
 
 function createContactChannels(contacts, configs = null) {
@@ -849,10 +849,6 @@ function App() {
       footerBlock?.body,
       sectionTextDefaults.footer.copy
     ),
-    maxLabel: readText(
-      footerBlock?.extraData?.maxLabel,
-      sectionTextDefaults.footer.maxLabel
-    ),
     telegramLabel: readText(
       footerBlock?.extraData?.telegramLabel,
       sectionTextDefaults.footer.telegramLabel
@@ -1005,7 +1001,6 @@ function App() {
       <Footer
         contacts={resolvedHeaderContacts}
         copy={resolvedFooterContent.copy}
-        maxLabel={resolvedFooterContent.maxLabel}
         telegramLabel={resolvedFooterContent.telegramLabel}
         whatsappLabel={resolvedFooterContent.whatsappLabel}
       />

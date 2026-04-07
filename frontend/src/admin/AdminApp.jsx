@@ -577,8 +577,7 @@ function validateContentBlockExtraData(blockKey, extraData) {
 function validateContactsForm(form) {
   return (
     validateOptionalExternalUrlField(form.whatsappUrl, 'Ссылка WhatsApp') ||
-    validateOptionalExternalUrlField(form.telegramUrl, 'Ссылка Telegram') ||
-    validateOptionalExternalUrlField(form.maxUrl, 'Ссылка Max')
+    validateOptionalExternalUrlField(form.telegramUrl, 'Ссылка Telegram')
   )
 }
 
@@ -1942,18 +1941,6 @@ function FooterContentEditor({ extraData, onChangeExtraData }) {
             value={extraData.telegramLabel ?? ''}
           />
         </AdminField>
-        <AdminField label="Max">
-          <input
-            className="admin-input"
-            onChange={(event) =>
-              onChangeExtraData((current) => ({
-                ...current,
-                maxLabel: event.target.value,
-              }))
-            }
-            value={extraData.maxLabel ?? ''}
-          />
-        </AdminField>
         <AdminField label="VK">
           <input
             className="admin-input"
@@ -2724,14 +2711,6 @@ function ShowcasePanel({
               <button className="admin-button" disabled={isSaving} type="submit">
                 {editingShowcaseId ? 'Сохранить фото' : 'Добавить фото'}
               </button>
-              <button
-                className="admin-button admin-button--ghost"
-                disabled={isSaving}
-                onClick={onCloseEditor}
-                type="button"
-              >
-                Закрыть
-              </button>
             </div>
           </form>
       </AdminModal>
@@ -2958,9 +2937,6 @@ function ContactsPanel({
             </AdminField>
             <AdminField label="Telegram">
               <input className="admin-input" name="telegramUrl" onChange={onChangeContactsForm} value={contactsForm.telegramUrl} />
-            </AdminField>
-            <AdminField label="Max">
-              <input className="admin-input" name="maxUrl" onChange={onChangeContactsForm} value={contactsForm.maxUrl} />
             </AdminField>
             <AdminField label="Адрес">
               <input className="admin-input" name="address" onChange={onChangeContactsForm} value={contactsForm.address} />

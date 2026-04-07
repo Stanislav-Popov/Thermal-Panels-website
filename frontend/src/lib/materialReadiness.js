@@ -62,7 +62,6 @@ export function getContactsMaterialGapCount(contacts) {
   const missingLinks = [
     contacts?.whatsappUrl,
     contacts?.telegramUrl,
-    contacts?.maxUrl,
   ].filter(
     (value) => !hasConfiguredExternalUrl(value)
   )

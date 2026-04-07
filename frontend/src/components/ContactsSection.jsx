@@ -2,7 +2,7 @@ import { Section } from './Section.jsx'
 import { sectionTextDefaults } from '../content/siteTextDefaults.js'
 import { defaultContactChannelConfigs } from '../content/siteTextDefaults.js'
 
-const messengerActionOrder = ['whatsapp', 'telegram', 'max']
+const messengerActionOrder = ['whatsapp', 'telegram']
 
 export function ContactsSection({
   channels,

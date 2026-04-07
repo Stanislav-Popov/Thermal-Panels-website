@@ -1,21 +1,18 @@
 import { sectionTextDefaults } from '../content/siteTextDefaults.js'
 
-const footerMessengerOrder = ['whatsapp', 'telegram', 'max']
+const footerMessengerOrder = ['whatsapp', 'telegram']
 
 export function Footer({
   contacts,
   copy = sectionTextDefaults.footer.copy,
-  maxLabel = sectionTextDefaults.footer.maxLabel,
   telegramLabel = sectionTextDefaults.footer.telegramLabel,
   whatsappLabel = sectionTextDefaults.footer.whatsappLabel,
 }) {
   const messengerLabels = {
-    max: maxLabel,
     telegram: telegramLabel,
     whatsapp: whatsappLabel,
   }
   const messengerLinks = {
-    max: contacts.maxHref,
     telegram: contacts.telegramHref,
     whatsapp: contacts.whatsappHref,
   }
