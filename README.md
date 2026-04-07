@@ -55,7 +55,7 @@ cd C:\Projects\Thermal-Panels\frontend
 Copy-Item .env.example .env
 ```
 
-Frontend `.env` is optional for local `npm run dev`, but `VITE_SITE_URL` is required for `npm run build`, because `robots.txt` and `sitemap.xml` are generated during the frontend build. `VITE_YANDEX_METRIKA_ID` is optional, but analytics stay disabled until the real counter ID is set. Backend `.env` is required for PostgreSQL connection.
+Frontend `.env` is optional for local `npm run dev`, but `VITE_SITE_URL` is required for `npm run build`, because `robots.txt` and `sitemap.xml` are generated during the frontend build. `VITE_YANDEX_METRIKA_ID` is optional, but analytics stay disabled until the real counter ID is set. Backend `.env` is required for PostgreSQL connection. To change admin panel credentials, set `ADMIN_SEED_LOGIN` and `ADMIN_SEED_PASSWORD` locally and in Render. The backend synchronizes that account on startup, so a restart or redeploy applies the new login and password.
 
 ### 3. Initialize database
 

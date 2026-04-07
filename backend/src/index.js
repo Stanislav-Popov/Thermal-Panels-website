@@ -1,6 +1,7 @@
 import { config } from './config.js'
 import { query } from './db/pool.js'
 import { loadedEnvFilePath } from './loadEnv.js'
+import { syncConfiguredAdminUser } from './services/admin/adminCredentialsSyncService.js'
 import { createServer } from './server.js'
 
 function ensureRuntimeConfig() {
@@ -14,9 +15,18 @@ function ensureRuntimeConfig() {
 async function start() {
   ensureRuntimeConfig()
   await query('select 1')
+  const adminSyncResult = await syncConfiguredAdminUser()
 
   if (loadedEnvFilePath) {
     console.log(`Loaded environment from ${loadedEnvFilePath}`)
+  }
+
+  if (adminSyncResult.skipped) {
+    console.log(`Skipped admin sync: ${adminSyncResult.reason}`)
+  } else {
+    console.log(
+      `Synchronized admin user ${adminSyncResult.login}. Deactivated ${adminSyncResult.deactivatedUsersCount} other admin account(s).`
+    )
   }
 
   const app = createServer()

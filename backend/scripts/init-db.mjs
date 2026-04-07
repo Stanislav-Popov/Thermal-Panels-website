@@ -4,8 +4,7 @@ import { fileURLToPath } from 'node:url'
 import pg from 'pg'
 import { config } from '../src/config.js'
 import { pool } from '../src/db/pool.js'
-import { upsertAdminUser } from '../src/repositories/adminUserRepository.js'
-import { createPasswordHash } from '../src/utils/passwords.js'
+import { syncConfiguredAdminUser } from '../src/services/admin/adminCredentialsSyncService.js'
 
 const { Client } = pg
 
@@ -74,29 +73,22 @@ async function runSqlFile(filePath) {
   }
 }
 
-async function seedAdminUserIfConfigured() {
-  if (!config.admin.seedLogin || !config.admin.seedPassword) {
-    console.log('Skipped admin seed: ADMIN_SEED_LOGIN / ADMIN_SEED_PASSWORD not set.')
-    return
-  }
-
-  const passwordHash = createPasswordHash(config.admin.seedPassword)
-  await upsertAdminUser({
-    login: config.admin.seedLogin,
-    passwordHash,
-    isActive: true,
-  })
-
-  console.log(`Seeded admin user ${config.admin.seedLogin}.`)
-}
-
 async function main() {
   await ensureDatabaseExists()
   await runSqlFile(schemaPath)
   console.log(`Applied schema from ${join('db', 'schema.sql')}.`)
   await runSqlFile(seedPath)
   console.log(`Applied seed from ${join('db', 'seed.sql')}.`)
-  await seedAdminUserIfConfigured()
+  const adminSyncResult = await syncConfiguredAdminUser()
+
+  if (adminSyncResult.skipped) {
+    console.log(`Skipped admin seed: ${adminSyncResult.reason}`)
+  } else {
+    console.log(
+      `Seeded admin user ${adminSyncResult.login}. Deactivated ${adminSyncResult.deactivatedUsersCount} other admin account(s).`
+    )
+  }
+
   await pool.end()
 }
 

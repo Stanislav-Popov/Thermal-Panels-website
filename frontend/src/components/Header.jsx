@@ -36,14 +36,6 @@ export function Header({
               {brand.badge ?? sectionTextDefaults.header.brandBadge}
             </span>
           )}
-          <span className="brand-mark__text">
-            <span className="brand-mark__title">
-              {brand.title ?? sectionTextDefaults.header.brandTitle}
-            </span>
-            <span className="brand-mark__subtitle">
-              {brand.subtitle ?? sectionTextDefaults.header.brandSubtitle}
-            </span>
-          </span>
         </a>
 
         <div className="site-header__actions">
